@@ -219,4 +219,5 @@ if __name__ == "__main__":
     print(s1.getKeywordByPage(0, 5))
     
     passwordReal = "aabbcc"
-    print(passwordEncoder.encode(passwordReal))
+    
+    s1.getData()

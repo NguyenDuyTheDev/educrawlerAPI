@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 import psycopg2
+from datetime import datetime
 from typing import Any
 
 class SingletonMeta(type):
@@ -76,8 +77,24 @@ class Singleton(metaclass=SingletonMeta):
     
     self.cur.execute(sql_command)
     result = self.cur.fetchone()
-    print(result)
-    return
+    
+    if result:
+      return (True, {
+        "Id": result[0],
+        "Domain": result[1],
+        "Url": result[2],
+        "FileName": result[3],
+        "Content": result[4],
+        "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
+        "CrawlStatus": result[6],
+        "Note": result[7],
+        "SpiderId": result[8],
+        "Title": result[9],
+        "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
+      })
+    else:
+      return (False, "No Article Existes")
+    
   
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
@@ -91,13 +108,18 @@ class Singleton(metaclass=SingletonMeta):
     FETCH FIRST %s ROW ONLY; 
     ''' % (page * pageArticlesNumber, pageArticlesNumber)
   
+    return_value = []
+  
     self.cur.execute(sql_command)
     result = self.cur.fetchone()
     while (result):
-      print(result)
+      return_value.append({
+        "Id": result[0],
+        "Url": result[1],
+      })
       result = self.cur.fetchone()
     
-    return
+    return return_value
   
   # Keyword Management
   def getTotalKeyword(self) -> int:
@@ -374,6 +396,41 @@ class Singleton(metaclass=SingletonMeta):
     finally:
       return (True, "New article created!")
     
+  def editArticle(self, article_id, title, domain, url, content):
+    #Check if not existed
+    sql_check_command = '''
+    SELECT * FROM public."Article" WHERE "Id" = '%s';
+    ''' % (article_id)
+    
+    self.cur.execute(sql_check_command)
+    result = self.cur.fetchone()
+    if not(result):
+      return (False, "Article doesn't exist!")
+    
+    #Update article
+    current = datetime.now()
+    reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+    print(reformatted_current)
+    
+    sql_update_command = '''
+    UPDATE public."Article"
+    SET "Domain" = '%s',
+    "Url" = '%s',
+    "Content" = '%s',
+    "Title" = '%s',
+    "LastUpdate" = TIMESTAMP '%s'
+    WHERE "Id" = %s;
+    ''' % (domain, url, content, title, reformatted_current, article_id)
+
+    try:
+      self.cur.execute(sql_update_command)
+      self.connection.commit()
+    except:
+      self.connection.rollback()
+      return (False, "Error when updating article!")
+    finally:
+      return (True, "Article has been updated successfully!")
+    
   def deleteArticleByUrl(self, url):
     #Check if existed
     sql_check_command = '''
@@ -389,6 +446,29 @@ class Singleton(metaclass=SingletonMeta):
     sql_delete_command = '''
     DELETE FROM public."Article" WHERE "Url" = '%s';
     ''' % (url)
+    try:
+      self.cur.execute(sql_delete_command)
+      self.connection.commit()
+    except:
+      return (False, "Error when deleting article!")
+    finally:
+      return (True, "Delete article completed!")
+    
+  def deleteArticleById(self, id):
+    #Check if existed
+    sql_check_command = '''
+    SELECT * FROM public."Article" WHERE "Id" = '%s';
+    ''' % (id)
+    
+    self.cur.execute(sql_check_command)
+    result = self.cur.fetchone()
+    if not(result):
+      return (False, "Article isn't existed!")
+    
+    # Delete article
+    sql_delete_command = '''
+    DELETE FROM public."Article" WHERE "Id" = '%s';
+    ''' % (id)
     try:
       self.cur.execute(sql_delete_command)
       self.connection.commit()
@@ -718,3 +798,86 @@ def delete_file_type(file_type_id: int):
     if res[1] == "Error when deleting!":
       return JSONResponse(status_code=500, content={"message": res[1]})  
     return JSONResponse(status_code=500, content={"message": "Error when deleting!"}) 
+
+@app.get("/articles", status_code=200, tags=["Article"])
+def get_articles_numbers():
+  total_article = databaseAPI.getTotalArticle()[0]
+    
+  return JSONResponse(status_code=200, content={
+    "total_article": total_article,
+  })  
+  
+@app.get("/articles/page/{page_id}", status_code=200, tags=["Article"])
+def get_articles_by_page(page_id: int):
+  total_article = databaseAPI.getArticlesByPage(page=page_id, pageArticlesNumber=10)
+    
+  return JSONResponse(status_code=200, content=total_article)  
+  
+@app.get("/articles/article/{article_id}", status_code=200, tags=["Article"])
+def get_articles_by_id(article_id: int):
+  res = databaseAPI.getArticleByID(article_id)
+  
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+
+class Article(BaseModel):
+    domain: str
+    url: str
+    filename: str
+    content: str
+    title: str
+    note: str
+    spiderid: int
+
+@app.post("/article", status_code=201, tags=["Article"])
+def create_article(article: Article):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  res = databaseAPI.createArticle(
+    title=article.title,
+    domain=article.domain,
+    url=article.url,
+    content=article.content
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=201, content={"detail": res[1]})
+  else:
+    if res[1] == "Article is already existed!":
+      return JSONResponse(status_code=422, content={"message": res[1]})
+    if res[1] == "Error when creating article!":
+      return JSONResponse(status_code=500, content={"message": res[1]}) 
+    
+@app.put("/article/{article_id}", status_code=200, tags=["Article"])
+def update_article(article_id: int, article: Article):
+  res = databaseAPI.editArticle(
+    article_id=article_id,
+    title=article.title,
+    domain=article.domain,
+    url=article.url,
+    content=article.content
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  else:
+    if res[1] == "Article doesn't exist!":
+      return JSONResponse(status_code=404, content={"message": res[1]})
+    if res[1] == "Error when updating article!":
+      return JSONResponse(status_code=500, content={"message": res[1]}) 
+
+@app.delete("/article/{article_id}", status_code=200, tags=["Article"])
+def delete_article(article_id: int):
+  res = databaseAPI.deleteArticleById(article_id)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  else:
+    if res[1] == "Article isn't existed!":
+      return JSONResponse(status_code=404, content={"message": res[1]})
+    if res[1] == "Error when deleting article!":
+      return JSONResponse(status_code=500, content={"message": res[1]})  
+    return JSONResponse(status_code=500, content={"message": "Error when deleting article!"}) 
