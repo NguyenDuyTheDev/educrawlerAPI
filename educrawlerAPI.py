@@ -664,3 +664,57 @@ def delete_keyword(keyword_id: int):
       return JSONResponse(status_code=404, content={"message": res[1]})
     if res[1] == "Error when deleting!":
       return JSONResponse(status_code=500, content={"message": res[1]})  
+    
+@app.get("/filetypes", status_code=200, tags=["Supported File Type"])
+def get_supported_file_types():
+  total_supported_file_types = databaseAPI.getTotalSupportedFileType()[0]
+  supported_file_types_list = databaseAPI.getSupportedFileTypeByPage(page=0, pageFileTypesNumber=total_supported_file_types)
+    
+  return JSONResponse(status_code=200, content={
+    "total_supported_file_types": total_supported_file_types,
+    "supported_file_types_list": supported_file_types_list
+  })  
+
+  
+@app.post("/filetypes", status_code=201, tags=["Supported File Type"])
+def create_file_type(name: str):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  res = databaseAPI.addSupportedFileType(name)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=201, content={"detail": res[1]})
+  else:
+    if res[1] == "File Type is already existed!":
+      return JSONResponse(status_code=422, content={"message": res[1]})
+    if res[1] == "Error when creating!":
+      return JSONResponse(status_code=500, content={"message": res[1]}) 
+    
+@app.put("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
+def update_file_type(file_type_id: int, name: str):
+  res = databaseAPI.editSupportedFileTypeByID(file_type_id, name)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  else:
+    if res[1] == "File Type doesn't exist!":
+      return JSONResponse(status_code=404, content={"message": res[1]})
+    if res[1] == "File Type is already existed!":
+      return JSONResponse(status_code=422, content={"message": res[1]})
+    if res[1] == "Error when updating!":
+      return JSONResponse(status_code=500, content={"message": res[1]})  
+    return JSONResponse(status_code=500, content={"message": "Error when updating!"}) 
+
+@app.delete("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
+def delete_file_type(file_type_id: int):
+  res = databaseAPI.deleteSupportedFileTypeByID(file_type_id)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  else:
+    if res[1] == "File Type doesn't exist!":
+      return JSONResponse(status_code=404, content={"message": res[1]})
+    if res[1] == "Error when deleting!":
+      return JSONResponse(status_code=500, content={"message": res[1]})  
+    return JSONResponse(status_code=500, content={"message": "Error when deleting!"}) 

@@ -658,7 +658,7 @@ def initDatabase():
   for i in range(0, len(academic_keyword)):
     s1.addKeyword(academic_keyword[i])
   for i in range(0, len(allowed_file_type)):
-    s1.addSupportedFileType(academic_keyword[i])
+    s1.addSupportedFileType(allowed_file_type[i])
   
 if __name__ == "__main__":
     # The client code.
@@ -679,3 +679,7 @@ if __name__ == "__main__":
     
     print(s1.createArticle("Title", "Nothing.com", "Anything.Nothing.com", "Content"))
     print(s1.getTotalArticle())
+
+    for i in range(0, 19):
+      s1.deleteSupportedFileTypeByID(i)
+    initDatabase()
