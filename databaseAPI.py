@@ -97,7 +97,7 @@ class Singleton(metaclass=SingletonMeta):
     
   def getArticleByUrl(self, url):
     sql_command = '''
-    select * from public."Article" where "Url" = %d
+    select * from public."Article" where "Url" = '%s'
     ''' % (url)
     
     self.cur.execute(sql_command)
