@@ -1,1 +1,0 @@
-How to run locally: uvicorn educrawlerAPI:app --reload
