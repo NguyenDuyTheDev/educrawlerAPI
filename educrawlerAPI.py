@@ -95,6 +95,30 @@ class Singleton(metaclass=SingletonMeta):
     else:
       return (False, "No Article Existes")
     
+  def getArticleByUrl(self, url):
+    sql_command = '''
+    select * from public."Article" where "Url" = %d
+    ''' % (url)
+    
+    self.cur.execute(sql_command)
+    result = self.cur.fetchone()
+    
+    if result:
+      return (True, {
+        "Id": result[0],
+        "Domain": result[1],
+        "Url": result[2],
+        "FileName": result[3],
+        "Content": result[4],
+        "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
+        "CrawlStatus": result[6],
+        "Note": result[7],
+        "SpiderId": result[8],
+        "Title": result[9],
+        "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
+      })
+    else:
+      return (False, "No Article Existes")
   
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
