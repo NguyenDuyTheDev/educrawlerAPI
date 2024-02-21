@@ -1,6 +1,6 @@
 from typing import Union
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 import psycopg2
@@ -95,6 +95,30 @@ class Singleton(metaclass=SingletonMeta):
     else:
       return (False, "No Article Existes")
     
+  def getArticleByUrl(self, url):
+    sql_command = '''
+    select * from public."Article" where "Url" = '%s'
+    ''' % (url)
+    
+    self.cur.execute(sql_command)
+    result = self.cur.fetchone()
+    
+    if result:
+      return (True, {
+        "Id": result[0],
+        "Domain": result[1],
+        "Url": result[2],
+        "FileName": result[3],
+        "Content": result[4],
+        "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
+        "CrawlStatus": result[6],
+        "Note": result[7],
+        "SpiderId": result[8],
+        "Title": result[9],
+        "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
+      })
+    else:
+      return (False, "No Article Existes")
   
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
@@ -399,7 +423,7 @@ class Singleton(metaclass=SingletonMeta):
   def editArticle(self, article_id, title, domain, url, content):
     #Check if not existed
     sql_check_command = '''
-    SELECT * FROM public."Article" WHERE "Id" = '%s';
+    SELECT * FROM public."Article" WHERE "Id" = %s;
     ''' % (article_id)
     
     self.cur.execute(sql_check_command)
@@ -830,6 +854,9 @@ class Article(BaseModel):
     title: str
     note: str
     spiderid: int
+    
+class Url(BaseModel):
+  url: str
 
 @app.post("/article", status_code=201, tags=["Article"])
 def create_article(article: Article):
@@ -881,3 +908,58 @@ def delete_article(article_id: int):
     if res[1] == "Error when deleting article!":
       return JSONResponse(status_code=500, content={"message": res[1]})  
     return JSONResponse(status_code=500, content={"message": "Error when deleting article!"}) 
+  
+from DemoCrawlerAPI import DemoCrawlerAPI 
+
+def run_demo_crawler(url: str):
+  user_settings = {}
+  user_settings["LINKS"]                          = [url] 
+  user_settings["DOWNLOAD_DELAY"]                 = 2
+  user_settings["DEPTH_LIMIT"]                    = 3
+  user_settings["CONCURRENT_REQUESTS_PER_DOMAIN"] = 8
+  user_settings["CONCURRENT_REQUESTS_PER_IP"]     = 0
+  rules = []
+  rules.append(("p", None, None, None, None))
+    
+  crawler = DemoCrawlerAPI(
+      links             =user_settings["LINKS"],
+      rules             =rules,
+      type              ="demo",
+      download_delay    =user_settings["DOWNLOAD_DELAY"],
+      depth_limit       =user_settings["DEPTH_LIMIT"],
+      concurrent_pdomain=user_settings["CONCURRENT_REQUESTS_PER_DOMAIN"],
+      concurrent_pid    =user_settings["CONCURRENT_REQUESTS_PER_IP"]
+  )
+  crawler.init_spider()
+  crawler.start_crawling()   
+
+from scrapy.crawler import Crawler
+
+@app.post("/spider/demo", status_code=201, tags=["Demo Spider"])
+async def test_crawling(url: str, background_tasks: BackgroundTasks):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  user_settings = {}
+  user_settings["LINKS"]                          = [url] 
+  user_settings["DOWNLOAD_DELAY"]                 = 2
+  user_settings["DEPTH_LIMIT"]                    = 3
+  user_settings["CONCURRENT_REQUESTS_PER_DOMAIN"] = 8
+  user_settings["CONCURRENT_REQUESTS_PER_IP"]     = 0
+  rules = []
+  rules.append(("p", None, None, None, None))
+    
+  crawler = DemoCrawlerAPI(
+      links             =user_settings["LINKS"],
+      rules             =rules,
+      type              ="demo",
+      download_delay    =user_settings["DOWNLOAD_DELAY"],
+      depth_limit       =user_settings["DEPTH_LIMIT"],
+      concurrent_pdomain=user_settings["CONCURRENT_REQUESTS_PER_DOMAIN"],
+      concurrent_pid    =user_settings["CONCURRENT_REQUESTS_PER_IP"]
+  )
+  crawler.init_spider()
+  #crawler.start_crawling()   
+  
+  background_tasks.add_task(crawler.start_crawling)
+  return {"message": "The Demo Spider is running"}

@@ -66,7 +66,7 @@ class Singleton(metaclass=SingletonMeta):
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
     SELECT
-        "Id", "Url"
+      *
     FROM
         "FinalProject"."Article"
     ORDER BY
@@ -220,4 +220,4 @@ if __name__ == "__main__":
     
     passwordReal = "aabbcc"
     
-    s1.getData()
+    s1.getArticlesByPage(167, 1)
