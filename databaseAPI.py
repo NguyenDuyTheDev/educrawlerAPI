@@ -40,9 +40,14 @@ class Singleton(metaclass=SingletonMeta):
     sql_command = '''
       SELECT pg_size_pretty(pg_database_size('educrawler'));
     '''
-    self.cur.execute(sql_command)
-    result = self.cur.fetchone()
-    return result[0]
+    
+    try:
+      self.cur.execute(sql_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      return result[0]
       
   def isOverStorage(self):
     storage = int(self.getUsageStorage().split(" ")[0])
@@ -204,7 +209,7 @@ class Singleton(metaclass=SingletonMeta):
   def deleteKeywordByID(self, id) -> bool:
     # Check if not exist
     sql_check_command = '''
-    SELECT * FROM public."Keyword" WHERE "ID" = '%s';
+    SELECT * FROM public."Keyword" WHERE "ID" = %s;
     ''' % (id)
     
     self.cur.execute(sql_check_command)
@@ -214,7 +219,7 @@ class Singleton(metaclass=SingletonMeta):
     
     # Delete
     sql_delete_command = '''
-    DELETE FROM public."Keyword" WHERE "ID" = '%s';
+    DELETE FROM public."Keyword" WHERE "ID" = %s;
     ''' % (id)
     try:
       self.cur.execute(sql_delete_command)
@@ -227,7 +232,7 @@ class Singleton(metaclass=SingletonMeta):
   def editKeywordByID(self, id, new_value) -> bool:
     # Check if not exist
     sql_check_command = '''
-    SELECT * FROM public."Keyword" WHERE "ID" = '%s';
+    SELECT * FROM public."Keyword" WHERE "ID" = %s;
     ''' % (id)
     
     self.cur.execute(sql_check_command)
@@ -323,7 +328,7 @@ class Singleton(metaclass=SingletonMeta):
   def deleteSupportedFileTypeByID(self, id) -> bool:
     # Check if not exist
     sql_check_command = '''
-    SELECT * FROM public."SupportedFileType" WHERE "ID" = '%s';
+    SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (id)
     
     self.cur.execute(sql_check_command)
@@ -333,7 +338,7 @@ class Singleton(metaclass=SingletonMeta):
     
     # Delete
     sql_delete_command = '''
-    DELETE FROM public."SupportedFileType" WHERE "ID" = '%s';
+    DELETE FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (id)
     try:
       self.cur.execute(sql_delete_command)
@@ -346,7 +351,7 @@ class Singleton(metaclass=SingletonMeta):
   def editSupportedFileTypeByID(self, id, new_value) -> bool:
     # Check if not exist
     sql_check_command = '''
-    SELECT * FROM public."SupportedFileType" WHERE "ID" = '%s';
+    SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (id)
     
     self.cur.execute(sql_check_command)
@@ -418,7 +423,7 @@ class Singleton(metaclass=SingletonMeta):
   def editArticle(self, article_id, title, domain, url, content):
     #Check if not existed
     sql_check_command = '''
-    SELECT * FROM public."Article" WHERE "Id" = '%s';
+    SELECT * FROM public."Article" WHERE "Id" = %s;
     ''' % (article_id)
     
     self.cur.execute(sql_check_command)
@@ -476,7 +481,7 @@ class Singleton(metaclass=SingletonMeta):
   def deleteArticleById(self, id):
     #Check if existed
     sql_check_command = '''
-    SELECT * FROM public."Article" WHERE "Id" = '%s';
+    SELECT * FROM public."Article" WHERE "Id" = %s;
     ''' % (id)
     
     self.cur.execute(sql_check_command)
@@ -486,7 +491,7 @@ class Singleton(metaclass=SingletonMeta):
     
     # Delete article
     sql_delete_command = '''
-    DELETE FROM public."Article" WHERE "Id" = '%s';
+    DELETE FROM public."Article" WHERE "Id" = %s;
     ''' % (id)
     try:
       self.cur.execute(sql_delete_command)
@@ -546,22 +551,30 @@ class Singleton(metaclass=SingletonMeta):
   def createWebpageSpiderCrawlRules(self, spiderID, crawlRuleId): 
     #Check if existed
     sql_check_command = '''
-    SELECT * FROM public."Spider" WHERE "ID" = '%s';
+    SELECT * FROM public."Spider" WHERE "ID" = %s;
     ''' % (spiderID)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Spider is not existed!")      
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Spider is not existed!")      
     
     sql_check_command = '''
-    SELECT * FROM public."CrawlRules" WHERE "ID" = '%s';
+    SELECT * FROM public."CrawlRules" WHERE "ID" = %s;
     ''' % (crawlRuleId)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "CrawlRule is not existed!")      
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if result:
+        return (False, "CrawlRule is not existed!")      
     
     # Create
     sql_insert_command = '''
@@ -579,22 +592,30 @@ class Singleton(metaclass=SingletonMeta):
   def createSpiderKeyword(self, spiderID, keywordId): 
     #Check if existed
     sql_check_command = '''
-    SELECT * FROM public."Spider" WHERE "ID" = '%s';
+    SELECT * FROM public."Spider" WHERE "ID" = %s;
     ''' % (spiderID)
+    print(spiderID)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Spider is not existed!")      
-    
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Spider is not existed!")   
+    except:
+      return (False, "Error when checking!")
+             
     sql_check_command = '''
-    SELECT * FROM public."Keyword" WHERE "ID" = '%s';
+    SELECT * FROM public."Keyword" WHERE "ID" = %s;
     ''' % (keywordId)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Keyword is not existed!")      
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+    except:
+      return (False, "Error when creating!")
+    finally:
+      if result:
+        return (False, "Keyword is not existed!")      
     
     # Create
     sql_insert_command = '''
@@ -611,22 +632,30 @@ class Singleton(metaclass=SingletonMeta):
   def createSpiderFileType(self, spiderID, fileTypeId): 
     #Check if existed
     sql_check_command = '''
-    SELECT * FROM public."Spider" WHERE "ID" = '%s';
+    SELECT * FROM public."Spider" WHERE "ID" = %s;
     ''' % (spiderID)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Spider is not existed!")      
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Spider is not existed!")      
     
     sql_check_command = '''
-    SELECT * FROM public."SupportedFileType" WHERE "ID" = '%s';
+    SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (fileTypeId)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Keyword is not existed!")      
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Keyword is not existed!")      
     
     # Create
     sql_insert_command = '''
@@ -647,10 +676,14 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Spider" WHERE "Url" = '%s';
     ''' % (url)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Spider is already existed!")  
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Spider is already existed!")  
     
     #Create new spider
     #Create base Spider
@@ -664,6 +697,18 @@ class Singleton(metaclass=SingletonMeta):
     except:
       return (False, "Error when creating spider!")
     
+    # Get base Spider ID
+    try:
+      self.cur.execute(sql_check_command)
+    except:
+      return (False, "Error when checking!")
+    finally:
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Error when creating spider!")
+    
+    spider_ID = result[0]
+ 
     # Create fileType
     for index in range(0, len(fileTypes)):
       self.createSpiderFileType(spiderID=spider_ID, fileTypeId=fileTypes[index]) 
@@ -673,12 +718,12 @@ class Singleton(metaclass=SingletonMeta):
       self.createSpiderKeyword(spiderID=spider_ID, keywordId=keywords[index]) 
     
     #Create Webpage Spider
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Error when creating spider!")
+    #self.cur.execute(sql_check_command)
+    #result = self.cur.fetchone()
+    #if not(result):
+    #  return (False, "Error when creating spider!")
     
-    spider_ID = result[0]
+    #spider_ID = result[0]
     sql_insert_command = '''
     INSERT INTO public."Webpage" ("ID") Values ('%s');
     ''' % (spider_ID)
@@ -690,7 +735,9 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when creating spider!")    
     
     # Create CrawlRules
-    # CrawlRules Format (ID, Tag, ClassName, IDName, ())
+    # CrawlRules Format (Tag, ClassName, IDName, ())
     for index in range(0, len(crawlRules)):
       crawlRule_ID = self.createCrawlRules(crawlRules[index][0], crawlRules[index][1], crawlRules[index][2], crawlRules[index][3])
       self.createWebpageSpiderCrawlRules(spiderID=spider_ID, crawlRuleId=crawlRule_ID)
+      
+    return (True, "Create Webpage Spider Complete")

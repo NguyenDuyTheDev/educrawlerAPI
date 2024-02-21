@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -210,3 +210,109 @@ def delete_article(article_id: int):
     if res[1] == "Error when deleting article!":
       return JSONResponse(status_code=500, content={"message": res[1]})  
     return JSONResponse(status_code=500, content={"message": "Error when deleting article!"}) 
+  
+class CrawlRule(BaseModel):
+    id: int
+    tag: str
+    HTMLClassName: str
+    HTMLIDName: str
+    ChildCrawlRuleID: int
+  
+class WebpageSpider(BaseModel):
+    url: str
+    delay: float
+    graphdeep: int
+    keyword: List[int] 
+    filetype: List[int]
+    crawlRules: List[CrawlRule]
+    
+@app.post("/webpageSpider", status_code=201, tags=["Webpage Spider"])
+def create_webpage_spider(spider_status: WebpageSpider):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  if spider_status.url == "":
+    return JSONResponse(status_code=422, content={"detail": "Url can not be empty"})   
+    
+  crawlRule = []
+  
+  for rule in spider_status.crawlRules:
+    if rule.tag == "":
+      return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+    if rule.HTMLClassName == "" and rule.HTMLIDName == "":
+      return JSONResponse(status_code=422, content={"detail": "HTMLClassName or HTMLIDName must have value"})
+    
+    crawlRule.append({
+      "id": rule.id,
+      "tag": rule.tag,
+      "HTMLClassName": rule.HTMLClassName,
+      "HTMLIDName": rule.HTMLIDName,
+      "ChildCrawlRuleID": rule.ChildCrawlRuleID
+    }) 
+  
+  relatedCrawlrule = []
+  for index in range(0, len(spider_status.crawlRules)):
+    isChildrenRule = False
+    
+    for existedCrawlrule in range(0, len(relatedCrawlrule)):
+      for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
+        if spider_status.crawlRules[subcrawlRule].ChildCrawlRuleID == spider_status.crawlRules[index].id:
+          isChildrenRule = True
+          relatedCrawlrule[existedCrawlrule].append(index)
+          break
+        
+      if isChildrenRule == True:
+        break
+    
+    if isChildrenRule == False:
+      relatedCrawlrule.append([index])
+  
+  afterReformatCrawlRules = []
+  for longRule in relatedCrawlrule:
+    rules = []
+
+    for rule in longRule:
+      rules.append(
+        [
+          spider_status.crawlRules[rule].tag,
+          spider_status.crawlRules[rule].HTMLClassName,
+          spider_status.crawlRules[rule].HTMLIDName,
+        ]
+      )
+      
+    for index in range(1, len(rules)):
+      rules[index - 1].append(rules[index])
+      
+    afterReformatCrawlRules.append(rules[0])
+          
+  '''
+  return JSONResponse(status_code=201, content={
+    "url": spider_status.url,
+    "delay": spider_status.delay,
+    "graphdeep": spider_status.graphdeep,
+    "keyword": spider_status.keyword,
+    "filetype": spider_status.filetype,
+    "crawlRules": crawlRule,
+    "relatedRule": relatedCrawlrule,
+    "realRule": afterReformatCrawlRules
+  })
+  '''
+
+  res = databaseAPI.createWebpageSpider(
+    url=spider_status.url,
+    delay=spider_status.delay,
+    graphDeep=spider_status.graphdeep,
+    maxThread=1,
+    crawlRules=afterReformatCrawlRules,
+    fileTypes=spider_status.filetype,
+    keywords=spider_status.keyword
+  )
+
+  if res[0] == True:
+    return JSONResponse(status_code=201, content={"detail": res[1]})
+  else:
+    if res[1] == "Spider is already existed!":
+      return JSONResponse(status_code=422, content={"message": res[1]})
+    if res[1] == "Error when creating spider!":
+      return JSONResponse(status_code=500, content={"message": res[1]}) 
+    return JSONResponse(status_code=500, content={"message": res[1]}) 
