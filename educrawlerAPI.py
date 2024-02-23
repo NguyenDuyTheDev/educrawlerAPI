@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 
 from databaseAPI import Singleton
 
+import requests
+
 #uvicorn educrawlerAPI:app --reload
 
 
@@ -17,10 +19,15 @@ class Message(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {
+      "Name": "EducrawlerAPI",
+      "Description": "API for managing Education Article and Spider",
+      "API Document Url (Swagger UI)": "https://educrawlerapi.onrender.com/docs",
+      "API Document Url (Redoc)": "https://educrawlerapi.onrender.com/redoc"
+    }
 
 @app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
+def test_api(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
   
 @app.get("/keywords", status_code=200, tags=["keywords"])
@@ -225,7 +232,7 @@ class WebpageSpider(BaseModel):
     keyword: List[int] 
     filetype: List[int]
     crawlRules: List[CrawlRule]
-    
+
 @app.post("/webpageSpider", status_code=201, tags=["Webpage Spider"])
 def create_webpage_spider(spider_status: WebpageSpider):
   if databaseAPI.isOverStorage():
@@ -284,20 +291,7 @@ def create_webpage_spider(spider_status: WebpageSpider):
       rules[index - 1].append(rules[index])
       
     afterReformatCrawlRules.append(rules[0])
-          
-  '''
-  return JSONResponse(status_code=201, content={
-    "url": spider_status.url,
-    "delay": spider_status.delay,
-    "graphdeep": spider_status.graphdeep,
-    "keyword": spider_status.keyword,
-    "filetype": spider_status.filetype,
-    "crawlRules": crawlRule,
-    "relatedRule": relatedCrawlrule,
-    "realRule": afterReformatCrawlRules
-  })
-  '''
-
+    
   res = databaseAPI.createWebpageSpider(
     url=spider_status.url,
     delay=spider_status.delay,
@@ -309,10 +303,52 @@ def create_webpage_spider(spider_status: WebpageSpider):
   )
 
   if res[0] == True:
-    return JSONResponse(status_code=201, content={"detail": res[1]})
+    return JSONResponse(
+      status_code=201, 
+      content={
+        "url": spider_status.url,
+        "delay": spider_status.delay,
+        "graphdeep": spider_status.graphdeep,
+        "keyword": spider_status.keyword,
+        "filetype": spider_status.filetype,
+        "crawlRules": crawlRule,
+        "relatedRule": relatedCrawlrule,
+        "realRule": afterReformatCrawlRules
+      }
+    )
   else:
     if res[1] == "Spider is already existed!":
       return JSONResponse(status_code=422, content={"message": res[1]})
     if res[1] == "Error when creating spider!":
       return JSONResponse(status_code=500, content={"message": res[1]}) 
     return JSONResponse(status_code=500, content={"message": res[1]}) 
+  
+@app.get("/webpageSpider", status_code=201, tags=["Webpage Spider"])
+def get_webpage_spider():
+  res = databaseAPI.getWebpageSpider()
+  
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+  
+@app.get("/demoSpider", status_code=201, tags=["Demo Spider"])
+def crawl_single_page(url: str):
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  body = {
+    "project": "default",
+    "spider": "demoCrawlerURL",
+    "link": url
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    res_data = res.json()
+    
+    body["jobid"] = res_data["jobid"]
+    return JSONResponse(status_code=200, content=body)
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not crawl")

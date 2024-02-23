@@ -43,6 +43,7 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_command)
+      
     except:
       return (False, "Error when checking!")
     finally:
@@ -678,66 +679,87 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_check_command)
+      self.connection.commit()
     except:
       return (False, "Error when checking!")
-    finally:
+
+    try: 
       result = self.cur.fetchone()
       if result:
         return (False, "Spider is already existed!")  
-    
+    except: 
+      return (False, "Error when fecthing checking data")  
+
     #Create new spider
     #Create base Spider
-    sql_insert_command = '''
-    INSERT INTO public."Spider" ("Url", "Delay", "GraphDeep", "MaxThread") Values ('%s', '%s', '%s', '%s');
-    ''' % (url, delay, graphDeep, maxThread)
+    sql_insert_select_command = '''
+    INSERT INTO public."Spider" ("Url", "Delay", "GraphDeep", "MaxThread") Values ('%s', %s, %s, %s);
+    SELECT * FROM public."Spider" WHERE "Url" = '%s';
+    ''' % (url, delay, graphDeep, maxThread, url)
 
     try:
-      self.cur.execute(sql_insert_command)
+      self.cur.execute(sql_insert_select_command)
       self.connection.commit()
     except:
-      return (False, "Error when creating spider!")
+      return (False, "Error when creating base spider!")
     
     # Get base Spider ID
+    #try:
+    #  self.cur.execute(sql_check_command)
+    #  self.connection.commit()
+    #except:
+    #  return (False, "Error when checking!")
+    
     try:
-      self.cur.execute(sql_check_command)
-    except:
-      return (False, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
       if not(result):
-        return (False, "Error when creating spider!")
+        return (False, "Error when fetching base spider!")
+    except:
+      return (False, "Error when fecthing base spider")  
     
-    spider_ID = result[0]
+    spider_ID = int(result[0])
+    print(spider_ID)
  
-    # Create fileType
-    for index in range(0, len(fileTypes)):
-      self.createSpiderFileType(spiderID=spider_ID, fileTypeId=fileTypes[index]) 
-
-    # Create keyword
-    for index in range(0, len(keywords)):
-      self.createSpiderKeyword(spiderID=spider_ID, keywordId=keywords[index]) 
-    
-    #Create Webpage Spider
-    #self.cur.execute(sql_check_command)
-    #result = self.cur.fetchone()
-    #if not(result):
-    #  return (False, "Error when creating spider!")
-    
-    #spider_ID = result[0]
     sql_insert_command = '''
-    INSERT INTO public."Webpage" ("ID") Values ('%s');
+    INSERT INTO public."WebpageSpider" ("ID") Values (%s);
     ''' % (spider_ID)
     
     try:
+      print(sql_insert_command)
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
-      return (False, "Error when creating spider!")    
-    
-    # Create CrawlRules
-    # CrawlRules Format (Tag, ClassName, IDName, ())
-    for index in range(0, len(crawlRules)):
-      crawlRule_ID = self.createCrawlRules(crawlRules[index][0], crawlRules[index][1], crawlRules[index][2], crawlRules[index][3])
-      self.createWebpageSpiderCrawlRules(spiderID=spider_ID, crawlRuleId=crawlRule_ID)
-      
+      return (False, "Error when creating webpage spider!")    
+
     return (True, "Create Webpage Spider Complete")
+  
+  def getWebpageSpider(self):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebpageSpider"
+    WHERE public."Spider"."ID" = public."WebpageSpider"."ID";
+    '''
+
+    return_value = []
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      while (result):
+        return_value.append({
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": result[4],
+          "LastEndDate": result[5],
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "MaxThread": result[10],
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    return (True, return_value)
