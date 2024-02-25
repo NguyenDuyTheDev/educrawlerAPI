@@ -763,3 +763,36 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when fetching data")
     
     return (True, return_value)
+  
+  def getWebpageSpiderById(self, id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebpageSpider"
+    WHERE public."Spider"."ID" = public."WebpageSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (id)
+
+    return_value = {}
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        return_value = {
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": result[4],
+          "LastEndDate": result[5],
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "MaxThread": result[10],
+        }
+        result = self.cur.fetchone()
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    return (True, return_value)    

@@ -352,3 +352,32 @@ def crawl_single_page(url: str):
     return JSONResponse(status_code=200, content=body)
   else:
     return JSONResponse(status_code=res.status_code, content="Can not crawl")
+  
+@app.post("/webpageSpider/{spider_id}/run", status_code=201, tags=["Webpage Spider"])
+def run_webpage_spider(spider_id: int):
+  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  url = ""
+  if webpage_spider_information[0] == True:
+    print(webpage_spider_information[1]["Url"])
+    url = webpage_spider_information[1]["Url"]
+  else:
+    return JSONResponse(status_code=404, content=webpage_spider_information[1])
+  
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  body = {
+    "project": "default",
+    "spider": "demoCrawlerURL",
+    "link": url
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    res_data = res.json()
+    
+    body["jobid"] = res_data["jobid"]
+    return JSONResponse(status_code=200, content=body)
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not crawl")
