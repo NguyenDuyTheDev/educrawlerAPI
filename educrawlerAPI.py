@@ -376,8 +376,12 @@ def run_webpage_spider(spider_id: int):
   
   if res.status_code == 200:
     res_data = res.json()
-    
     body["jobid"] = res_data["jobid"]
-    return JSONResponse(status_code=200, content=body)
+    
+    setJobIDResult = databaseAPI.setSpiderJobID(spider_id, body["jobid"])
+    if setJobIDResult[0] == True:
+      return JSONResponse(status_code=200, content=setJobIDResult[1])
+    else:
+      return JSONResponse(status_code=200, content="The Spider is running without updating jobid")
   else:
     return JSONResponse(status_code=res.status_code, content="Can not crawl")

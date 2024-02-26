@@ -435,7 +435,6 @@ class Singleton(metaclass=SingletonMeta):
     #Update article
     current = datetime.now()
     reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
-    print(reformatted_current)
     
     sql_update_command = '''
     UPDATE public."Article"
@@ -746,17 +745,26 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_select_command)
       result = self.cur.fetchone()
       while (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastRunDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
         return_value.append({
           "Id": result[0],
           "Url": result[1],
           "Status": result[2],
           "CrawlStatus": result[3],
-          "LastRunDate": result[4],
-          "LastEndDate": result[5],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
           "RunTime": result[6],
           "isBlocked": result[7],
-          "Delay": result[8],
-          "MaxThread": result[10],
+          #"Delay": result[8],
+          #"MaxThread": result[10],
+          "JobId": result[12],
         })
         result = self.cur.fetchone()
     except:
@@ -796,3 +804,37 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when fetching data")
     
     return (True, return_value)    
+
+  def setSpiderJobID(self, spider_id, job_id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebpageSpider"
+    WHERE public."Spider"."ID" = public."WebpageSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        current = datetime.now()
+        reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+        
+        sql_select_command = '''
+        UPDATE public."Spider"
+        SET "JobId" = '%s',
+        "LastRunDate" = TIMESTAMP '%s'
+        WHERE "ID" = %s;            
+        ''' % (job_id, reformatted_current, spider_id)        
+        
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      return (False, "Error when assigning data")
+    
+    return (True, "Update Spider JobId Successfully") 
