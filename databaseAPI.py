@@ -751,7 +751,7 @@ class Singleton(metaclass=SingletonMeta):
           
         LastEndDate = ""
         if result[5]:
-          LastRunDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
         
         return_value.append({
           "Id": result[0],
