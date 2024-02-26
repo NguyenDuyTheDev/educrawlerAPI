@@ -385,3 +385,42 @@ def run_webpage_spider(spider_id: int):
       return JSONResponse(status_code=200, content="The Spider is running without updating jobid")
   else:
     return JSONResponse(status_code=res.status_code, content="Can not crawl")
+  
+@app.post("/webpageSpider/{spider_id}/stop", status_code=201, tags=["Webpage Spider"])
+def stop_webpage_spider(spider_id: int):
+  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  
+  if webpage_spider_information[0] == True:
+    if webpage_spider_information[1]["JobId"] == '':
+      return JSONResponse(status_code=404, content="The Spider is not running!")
+  else:
+    return JSONResponse(status_code=404, content=webpage_spider_information[1])
+  
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/cancel.json"
+  body = {
+    "project": "default",
+    "job": webpage_spider_information[1]["JobId"]
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    res = databaseAPI.updateSpiderWhenClosingViaID(spider_id)
+    if res[0] == True:
+      return JSONResponse(status_code=200, content="Close spider successfully!")
+    else:
+      return JSONResponse(status_code=200, content=res[1])
+    return JSONResponse(status_code=200, content="Close spider successfully!")
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not stop")
+  
+@app.get("/webpageSpider/{spider_id}/lastRunTime", status_code=200, tags=["Webpage Spider"])
+def get_last_run_time(spider_id: int):
+  res = databaseAPI.calculateLastRunTime(spider_id)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"TotalRunTime": res[1]}) 
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not calculate")

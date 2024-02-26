@@ -796,6 +796,7 @@ class Singleton(metaclass=SingletonMeta):
           "isBlocked": result[7],
           "Delay": result[8],
           "MaxThread": result[10],
+          "JobId": result[12],
         }
         result = self.cur.fetchone()
       else:
@@ -838,3 +839,67 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when assigning data")
     
     return (True, "Update Spider JobId Successfully") 
+  
+  def updateSpiderWhenClosingViaID(self, spider_id):    
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider"
+    WHERE public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):                
+        current = datetime.now()
+        reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+        
+        totalRunTime = current - result[4]
+        totalRunTimeAsInt = totalRunTime.seconds + result[6]
+        
+        sql_select_command = '''
+        UPDATE public."Spider"
+        SET "JobId" = '',
+        "Status" = 'Available',
+        "CrawlStatus" = 'Good', 
+        "LastEndDate" = TIMESTAMP '%s',
+        "RunTime" = '%s'
+        WHERE "ID" = %s;            
+        ''' % (reformatted_current, totalRunTimeAsInt, result[0])   
+        
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      return (False, "Error when assigning data")
+    
+    return (True, "Update Spider Closing Status Successfully") 
+
+  def calculateLastRunTime(self, spider_id):    
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider"
+    WHERE public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):                
+        print(type(result[4]))
+        print(result[5])
+        
+        totalRunTime = result[5] - result[4]
+        return (True, totalRunTime.seconds)  
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    
+    return (True, "Update Spider Closing Status Successfully") 
