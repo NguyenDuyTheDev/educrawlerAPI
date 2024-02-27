@@ -366,8 +366,9 @@ def run_webpage_spider(spider_id: int):
   api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
   body = {
     "project": "default",
-    "spider": "demoCrawlerURL",
-    "link": url
+    "spider": "WebpageSpider",
+    "link": url,
+    "spider_id": spider_id
   }  
   res = requests.post(
     api_endpoint,
