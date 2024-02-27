@@ -425,3 +425,68 @@ def get_last_run_time(spider_id: int):
     return JSONResponse(status_code=200, content={"TotalRunTime": res[1]}) 
   else:
     return JSONResponse(status_code=res.status_code, content="Can not calculate")
+
+# Website Spider
+@app.post("/websiteSpider/{spider_id}/run", status_code=201, tags=["Website Spider"])
+def run_website_spider(spider_id: int):
+  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  url = ""
+  if webpage_spider_information[0] == True:
+    print(webpage_spider_information[1]["Url"])
+    url = webpage_spider_information[1]["Url"]
+  else:
+    return JSONResponse(status_code=404, content=webpage_spider_information[1])
+  
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  body = {
+    "project": "default",
+    "spider": "WebsiteSpider",
+    "link": url,
+    "spider_id": spider_id
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    res_data = res.json()
+    body["jobid"] = res_data["jobid"]
+    
+    setJobIDResult = databaseAPI.setSpiderJobID(spider_id, body["jobid"])
+    if setJobIDResult[0] == True:
+      return JSONResponse(status_code=200, content=setJobIDResult[1])
+    else:
+      return JSONResponse(status_code=200, content="The Spider is running without updating jobid")
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not crawl")
+  
+@app.post("/websiteSpider/{spider_id}/stop", status_code=201, tags=["Website Spider"])
+def stop_website_spider(spider_id: int):
+  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  
+  if webpage_spider_information[0] == True:
+    if webpage_spider_information[1]["JobId"] == '':
+      return JSONResponse(status_code=404, content="The Spider is not running!")
+  else:
+    return JSONResponse(status_code=404, content=webpage_spider_information[1])
+  
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/cancel.json"
+  body = {
+    "project": "default",
+    "job": webpage_spider_information[1]["JobId"]
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    res = databaseAPI.updateSpiderWhenClosingViaID(spider_id)
+    if res[0] == True:
+      return JSONResponse(status_code=200, content="Close spider successfully!")
+    else:
+      return JSONResponse(status_code=200, content=res[1])
+    return JSONResponse(status_code=200, content="Close spider successfully!")
+  else:
+    return JSONResponse(status_code=res.status_code, content="Can not stop")
