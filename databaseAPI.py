@@ -450,7 +450,7 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_update_command)
       self.connection.commit()
     except:
-      self.connection.rollback()
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when updating article!")
     finally:
       return (True, "Article has been updated successfully!")
@@ -823,6 +823,8 @@ class Singleton(metaclass=SingletonMeta):
         sql_select_command = '''
         UPDATE public."Spider"
         SET "JobId" = '%s',
+        "Status" = 'Running',
+        "CrawlStatus" = 'Good',
         "LastRunDate" = TIMESTAMP '%s'
         WHERE "ID" = %s;            
         ''' % (job_id, reformatted_current, spider_id)        
@@ -903,3 +905,179 @@ class Singleton(metaclass=SingletonMeta):
     
     
     return (True, "Update Spider Closing Status Successfully") 
+  
+  #Website Spider  
+  def createWebsiteSpider(self, url, delay = 2.5, graphDeep = 2, maxThread = 1, crawlRules = [], fileTypes = [], keywords = []):
+    #Check if existed
+    sql_check_command = '''
+    SELECT * FROM public."Spider" WHERE "Url" = '%s';
+    ''' % (url)
+    
+    try:
+      self.cur.execute(sql_check_command)
+      self.connection.commit()
+    except:
+      return (False, "Error when checking!")
+
+    try: 
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Spider is already existed!")  
+    except: 
+      return (False, "Error when fecthing checking data")  
+
+    #Create new spider
+    #Create base Spider
+    sql_insert_select_command = '''
+    INSERT INTO public."Spider" ("Url", "Delay", "GraphDeep", "MaxThread") Values ('%s', %s, %s, %s);
+    SELECT * FROM public."Spider" WHERE "Url" = '%s';
+    ''' % (url, delay, graphDeep, maxThread, url)
+
+    try:
+      self.cur.execute(sql_insert_select_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when creating base spider!")
+    
+    try:
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Error when fetching base spider!")
+    except:
+      return (False, "Error when fecthing base spider")  
+    
+    #Create website spider
+    spider_ID = int(result[0])
+ 
+    sql_insert_command = '''
+    INSERT INTO public."WebsiteSpider" ("ID") Values (%s);
+    ''' % (spider_ID)
+    
+    try:
+      self.cur.execute(sql_insert_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when creating webpage spider!")    
+
+    return (True, "Create Website Spider Complete")
+  
+  def getWebsiteSpider(self):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID";
+    '''
+
+    return_value = []
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      while (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
+        return_value.append({
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "GraphDeep": result[9],
+          "MaxThread": result[10],
+          "JobId": result[12],
+          "TotalPage": result[14],
+          "CrawlSuccess": result[15],
+          "CrawlFail": result[16],
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    return (True, return_value)
+  
+  def getWebsiteSpiderById(self, id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (id)
+
+    return_value = {}
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        return_value = {
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": result[4],
+          "LastEndDate": result[5],
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "GraphDeep": result[9],
+          "MaxThread": result[10],
+          "JobId": result[12],
+          "TotalPage": result[14],
+          "CrawlSuccess": result[15],
+          "CrawlFail": result[16],
+        }
+        result = self.cur.fetchone()
+      else:
+        return (False, "No Website Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    return (True, return_value)    
+
+  def setWebsiteSpiderJobID(self, spider_id, job_id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        current = datetime.now()
+        reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+        
+        sql_select_command = '''
+        UPDATE public."Spider"
+        SET "JobId" = '%s',
+        "Status" = 'Running',
+        "CrawlStatus" = 'Good',
+        "LastRunDate" = TIMESTAMP '%s'
+        WHERE "ID" = %s;            
+        ''' % (job_id, reformatted_current, spider_id)        
+        
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when assigning data")
+    
+    return (True, "Update Spider JobId Successfully") 

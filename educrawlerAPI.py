@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from databaseAPI import Singleton
 
 import requests
+from urllib.parse import urlparse
+import re
 
 #uvicorn educrawlerAPI:app --reload
 
@@ -427,9 +429,19 @@ def get_last_run_time(spider_id: int):
     return JSONResponse(status_code=res.status_code, content="Can not calculate")
 
 # Website Spider
+
+@app.get("/websiteSpider", status_code=200, tags=["Website Spider"])
+def get_website_spider():
+  res = databaseAPI.getWebsiteSpider()
+  
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+
 @app.post("/websiteSpider/{spider_id}/run", status_code=201, tags=["Website Spider"])
 def run_website_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  webpage_spider_information = databaseAPI.getWebsiteSpiderById(spider_id)
   url = ""
   if webpage_spider_information[0] == True:
     print(webpage_spider_information[1]["Url"])
@@ -442,7 +454,10 @@ def run_website_spider(spider_id: int):
     "project": "default",
     "spider": "WebsiteSpider",
     "link": url,
-    "spider_id": spider_id
+    "spider_id": spider_id,
+    "delay": webpage_spider_information[1]["Delay"],
+    "graphDeep": webpage_spider_information[1]["GraphDeep"],
+    "maxThread": webpage_spider_information[1]["MaxThread"],
   }  
   res = requests.post(
     api_endpoint,
@@ -452,8 +467,9 @@ def run_website_spider(spider_id: int):
   if res.status_code == 200:
     res_data = res.json()
     body["jobid"] = res_data["jobid"]
+    print(body["jobid"])
     
-    setJobIDResult = databaseAPI.setSpiderJobID(spider_id, body["jobid"])
+    setJobIDResult = databaseAPI.setWebsiteSpiderJobID(spider_id, body["jobid"])
     if setJobIDResult[0] == True:
       return JSONResponse(status_code=200, content=setJobIDResult[1])
     else:
@@ -463,7 +479,7 @@ def run_website_spider(spider_id: int):
   
 @app.post("/websiteSpider/{spider_id}/stop", status_code=201, tags=["Website Spider"])
 def stop_website_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  webpage_spider_information = databaseAPI.getWebsiteSpiderById(spider_id)
   
   if webpage_spider_information[0] == True:
     if webpage_spider_information[1]["JobId"] == '':
@@ -490,3 +506,131 @@ def stop_website_spider(spider_id: int):
     return JSONResponse(status_code=200, content="Close spider successfully!")
   else:
     return JSONResponse(status_code=res.status_code, content="Can not stop")
+  
+class WebsiteSpider(BaseModel):
+    url: str
+    delay: float
+    graphdeep: int
+    maxThread: int
+    keyword: List[int] 
+    filetype: List[int]
+    crawlRules: List[CrawlRule]
+  
+@app.post("/websiteSpider", status_code=201, tags=["Website Spider"])
+def create_website_spider(spider_status: WebsiteSpider):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  # Validate Input
+  if spider_status.url == "":
+    return JSONResponse(status_code=403, content={"detail": "Url can not be empty"})   
+  
+  '''
+  try:
+    pattern = r'^(http|https):\/\/([\w.-]+)(\.[\w.-]+)+([\/\w\.-]*)*\/?$'
+    if bool(re.match(pattern, spider_status.url)) == False:
+      return JSONResponse(status_code=403, content={"detail": "Url field only contain url"})  
+  except:
+    return JSONResponse(status_code=403, content={"detail": "Url field only contain url"})  
+  '''
+    
+  if spider_status.delay < 0.5:
+    return JSONResponse(status_code=403, content={"detail": "Spider delay can not be lower than 0.5."})   
+   
+  if spider_status.graphdeep < 1:
+    return JSONResponse(status_code=403, content={"detail": "Spider graph deep can not be lower than 1."})
+    
+  if spider_status.graphdeep > 3:
+    return JSONResponse(status_code=403, content={"detail": "Spider does not support graph deep greater than 3"})
+    
+  if spider_status.maxThread < 1:
+    return JSONResponse(status_code=403, content={"detail": "Spider max Thread can not be lower than 1."})
+   
+  if spider_status.maxThread > 8:
+    return JSONResponse(status_code=403, content={"detail": "Spider does not support max thread deep greater than 8"})
+    
+  # Format Crawl Rule
+  crawlRule = []
+  
+  for rule in spider_status.crawlRules:
+    if rule.tag == "":
+      return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+    if rule.HTMLClassName == "" and rule.HTMLIDName == "":
+      return JSONResponse(status_code=422, content={"detail": "HTMLClassName or HTMLIDName must have value"})
+    
+    crawlRule.append({
+      "id": rule.id,
+      "tag": rule.tag,
+      "HTMLClassName": rule.HTMLClassName,
+      "HTMLIDName": rule.HTMLIDName,
+      "ChildCrawlRuleID": rule.ChildCrawlRuleID
+    }) 
+  
+  relatedCrawlrule = []
+  for index in range(0, len(spider_status.crawlRules)):
+    isChildrenRule = False
+    
+    for existedCrawlrule in range(0, len(relatedCrawlrule)):
+      for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
+        if spider_status.crawlRules[subcrawlRule].ChildCrawlRuleID == spider_status.crawlRules[index].id:
+          isChildrenRule = True
+          relatedCrawlrule[existedCrawlrule].append(index)
+          break
+        
+      if isChildrenRule == True:
+        break
+    
+    if isChildrenRule == False:
+      relatedCrawlrule.append([index])
+  
+  afterReformatCrawlRules = []
+  for longRule in relatedCrawlrule:
+    rules = []
+
+    for rule in longRule:
+      rules.append(
+        [
+          spider_status.crawlRules[rule].tag,
+          spider_status.crawlRules[rule].HTMLClassName,
+          spider_status.crawlRules[rule].HTMLIDName,
+        ]
+      )
+      
+    for index in range(1, len(rules)):
+      rules[index - 1].append(rules[index])
+      
+    afterReformatCrawlRules.append(rules[0])
+    
+  # Create in db
+  res = databaseAPI.createWebsiteSpider(
+    url=spider_status.url,
+    delay=spider_status.delay,
+    graphDeep=spider_status.graphdeep,
+    maxThread=spider_status.maxThread,
+    crawlRules=afterReformatCrawlRules,
+    fileTypes=spider_status.filetype,
+    keywords=spider_status.keyword
+  )
+
+  if res[0] == True:
+    return JSONResponse(
+      status_code=201, 
+      content={
+        "url": spider_status.url,
+        "delay": spider_status.delay,
+        "graphdeep": spider_status.graphdeep,
+        "maxThread": spider_status.maxThread,
+        "keyword": spider_status.keyword,
+        "filetype": spider_status.filetype,
+        "crawlRules": crawlRule,
+        "relatedRule": relatedCrawlrule,
+        "realRule": afterReformatCrawlRules
+      }
+    )
+  else:
+    if res[1] == "Spider is already existed!":
+      return JSONResponse(status_code=422, content={"message": res[1]})
+    if res[1] == "Error when creating spider!":
+      return JSONResponse(status_code=500, content={"message": res[1]}) 
+    return JSONResponse(status_code=500, content={"message": res[1]}) 
+  

@@ -1,1 +1,4 @@
-How to run locally: uvicorn educrawlerAPI:app --reload
+# EduCrawler API
+## This API is using for controling scrapy service and managing database
+
+Run locally: uvicorn educrawlerAPI:app --reload
