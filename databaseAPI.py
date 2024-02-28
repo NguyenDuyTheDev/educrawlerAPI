@@ -594,7 +594,6 @@ class Singleton(metaclass=SingletonMeta):
     sql_check_command = '''
     SELECT * FROM public."Spider" WHERE "ID" = %s;
     ''' % (spiderID)
-    print(spiderID)
     
     try:
       self.cur.execute(sql_check_command)
@@ -611,12 +610,11 @@ class Singleton(metaclass=SingletonMeta):
     try:
       self.cur.execute(sql_check_command)
       result = self.cur.fetchone()
+      if not(result):
+        return (False, "Keyword is not existed!")      
     except:
       return (False, "Error when creating!")
-    finally:
-      if result:
-        return (False, "Keyword is not existed!")      
-    
+
     # Create
     sql_insert_command = '''
     INSERT INTO public."SpiderKeyword" ("KeywordID", "SpiderID") Values (%s, %s);
@@ -625,9 +623,10 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating keyword!")
-    finally:
-      return (True, "Create keyword successfully")   
+    
+    return (True, "Create keyword successfully")   
 
   def createSpiderFileType(self, spiderID, fileTypeId): 
     #Check if existed
@@ -637,12 +636,11 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_check_command)
-    except:
-      return (False, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
       if not(result):
-        return (False, "Spider is not existed!")      
+        return (False, "Spider is not existed!")   
+    except:
+      return (False, "Error when checking!")    
     
     sql_check_command = '''
     SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
@@ -650,12 +648,11 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_check_command)
-    except:
-      return (False, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
-      if result:
-        return (False, "Keyword is not existed!")      
+      if not(result):
+        return (False, "FileType is not existed!")      
+    except:
+      return (False, "Error when creating!")
     
     # Create
     sql_insert_command = '''
@@ -665,9 +662,10 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
-      return (False, "Error when creating keyword!")
-    finally:
-      return (True, "Create keyword successfully")   
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when creating file type for spider!")
+    
+    return (True, "Create keyword successfully")   
 
   #Webpage Spider  
   def createWebpageSpider(self, url, delay = 2.5, graphDeep = 3, maxThread = 1, crawlRules = [], fileTypes = [], keywords = []):
@@ -700,14 +698,8 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_select_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating base spider!")
-    
-    # Get base Spider ID
-    #try:
-    #  self.cur.execute(sql_check_command)
-    #  self.connection.commit()
-    #except:
-    #  return (False, "Error when checking!")
     
     try:
       result = self.cur.fetchone()
@@ -716,8 +708,8 @@ class Singleton(metaclass=SingletonMeta):
     except:
       return (False, "Error when fecthing base spider")  
     
+    #Create Webpage Spider
     spider_ID = int(result[0])
-    print(spider_ID)
  
     sql_insert_command = '''
     INSERT INTO public."WebpageSpider" ("ID") Values (%s);
@@ -728,8 +720,23 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating webpage spider!")    
 
+    #Insert Keyword
+    for keywordID in keywords:
+      self.createSpiderKeyword(
+        spiderID=spider_ID,
+        keywordId=keywordID
+      )
+    
+    #Insert File Type
+    for fileTypeID in fileTypes:
+      self.createSpiderFileType(
+        spiderID=spider_ID,
+        fileTypeId=fileTypeID
+      )
+    
     return (True, "Create Webpage Spider Complete")
   
   def getWebpageSpider(self):
@@ -1081,3 +1088,36 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when assigning data")
     
     return (True, "Update Spider JobId Successfully") 
+  
+  # Spider
+  def getSpiderTotalAriticle(self, spider_id):
+    sql_select_command = '''
+    SELECT count(*)
+    FROM public."Article"
+    WHERE "SpiderId" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        return (True, result[0])
+      else:
+        return (False, "Error when fetching data")
+    except:
+      return (False, "Error when fetching data")
+  
+  def deleteSpider(self, spider_id):
+    sql_select_command = '''
+    DELETE FROM public."Spider"
+    WHERE "ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when deleting data")    
+  
+    return (True, "Delete Spider %s successfully!" % spider_id)    

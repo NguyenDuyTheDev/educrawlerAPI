@@ -634,3 +634,20 @@ def create_website_spider(spider_status: WebsiteSpider):
       return JSONResponse(status_code=500, content={"message": res[1]}) 
     return JSONResponse(status_code=500, content={"message": res[1]}) 
   
+@app.get("/websiteSpider/{spider_id}/totalArticle", status_code=200, tags=["Website Spider"])
+def get_total_article_get_from_website_spider(spider_id: int):
+  res = databaseAPI.getSpiderTotalAriticle(spider_id)
+    
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+  
+@app.post("/spider", status_code=200, tags=["Spider"])
+def delete_spider(spider_id: int):
+  res = databaseAPI.deleteSpider(spider_id)
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  else:
+    return JSONResponse(status_code=500, content={"message": res[1]})  
