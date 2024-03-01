@@ -1,4 +1,5 @@
 from typing import Union, List
+from enum import Enum
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -643,7 +644,8 @@ def get_total_article_get_from_website_spider(spider_id: int):
   else:
     return JSONResponse(status_code=404, content=res[1])
   
-@app.post("/spider", status_code=200, tags=["Spider"])
+# Spider 
+@app.delete("/spider", status_code=200, tags=["Spider"])
 def delete_spider(spider_id: int):
   res = databaseAPI.deleteSpider(spider_id)
   
@@ -651,3 +653,54 @@ def delete_spider(spider_id: int):
     return JSONResponse(status_code=200, content={"detail": res[1]})
   else:
     return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+class UserRole(str, Enum):
+    user = "User"
+    admin = "Admin"
+    manager = "Manager"
+  
+class User(BaseModel):
+    Username: str
+    Password: str 
+    Role: str
+  
+# User
+@app.post("/users", status_code=201, tags=["User"])
+def create_user(user: User):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+  
+  if user.Role != "User" and user.Role != "Admin" and user.Role != "Manager":
+    return JSONResponse(status_code=429, content={"message": "User Role must be 'User', 'Admin' or 'Manager'"})
+  
+  res = databaseAPI.createUser(
+    username=user.Username,
+    password=user.Password,
+    role=user.Role
+    )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=201, content={"detail": res[1]})
+  else:
+    if res[1] == "This Username is already existed":
+      return JSONResponse(status_code=409, content={"message": res[1]})
+    if res[1] == "Manager is already existed":
+      return JSONResponse(status_code=409, content={"message": res[1]})
+    if res[1] == "Error when creating!":
+      return JSONResponse(status_code=500, content={"message": res[1]})  
+    
+@app.get("/users", status_code=200, tags=["User"])
+def get_users(page: int = 0, userPerPage: int = 10):
+  res = databaseAPI.getUser(
+    page=page,
+    userPerPage=userPerPage
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=201, content={"detail": res[1]})
+  else:
+    if res[1] == "Error when fetching data":
+      return JSONResponse(status_code=500, content={"message": res[1]})
+    if res[1] == "Out of range":
+      return JSONResponse(status_code=404, content={"message": "Not Found"})   
+    return JSONResponse(status_code=404, content={"message": res[1]})

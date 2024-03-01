@@ -1121,3 +1121,105 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when deleting data")    
   
     return (True, "Delete Spider %s successfully!" % spider_id)    
+  
+  # User
+  def createUser(
+    self, 
+    username: str, 
+    password: str,
+    role: str
+    ):
+    sql_command = '''
+    SELECT count(*)
+    FROM public."User"
+    WHERE "Username" = '%s';
+    ''' % (username)    
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      if (result[0] > 0):
+        return (False, "This Username is already existed")
+    except:
+      return (False, "Error when fetching data")
+    
+    if role == "Manager":
+      sql_command = '''
+      SELECT count(*)
+      FROM public."User"
+      WHERE "Role" = 'Manager';
+      '''
+      
+      try:
+        self.cur.execute(sql_command)
+        result = self.cur.fetchone()
+        if (result[0] > 0):
+          return (False, "Manager is already existed")
+      except:
+        return (False, "Error when fetching data")
+    
+    sql_command = '''
+    INSERT
+    INTO public."User" ("Username", "Password", "Role") 
+    VALUES ('%s', '%s', '%s');
+    ''' % (username, password, role)    
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when creating user")    
+    
+    return (True, "Create User Successfully!")
+  
+  def getUser(self, page, userPerPage):
+    sql_command = '''
+    SELECT
+        *
+    FROM
+        public."User"
+    ORDER BY
+        "ID" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (page * userPerPage, userPerPage)
+  
+    return_value = []
+  
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        return_value.append({
+          "Username": result[1],
+          "OnlineStatus": result[3],
+          "AccountStatus": result[5],
+          "Role": result[9]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+      
+    if len(return_value) == 0:
+      return (False, "Out of range")
+      
+    sql_command = '''
+    SELECT
+        count(*)
+    FROM
+        public."User"; 
+    ''' 
+    
+    total_user = 0
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_user = result[0]
+    except:
+      return (False, "Error when counting user")
+      
+    return (True, {
+      "Total_user": total_user,
+      "Detail": return_value
+    })
