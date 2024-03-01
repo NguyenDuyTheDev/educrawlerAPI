@@ -76,25 +76,27 @@ class Singleton(metaclass=SingletonMeta):
     select * from public."Article" where "Id" = %d
     ''' % (id)
     
-    self.cur.execute(sql_command)
-    result = self.cur.fetchone()
-    
-    if result:
-      return (True, {
-        "Id": result[0],
-        "Domain": result[1],
-        "Url": result[2],
-        "FileName": result[3],
-        "Content": result[4],
-        "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
-        "CrawlStatus": result[6],
-        "Note": result[7],
-        "SpiderId": result[8],
-        "Title": result[9],
-        "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
-      })
-    else:
-      return (False, "No Article Existes")
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      if result:
+        return (True, {
+          "Id": result[0],
+          "Domain": result[1],
+          "Url": result[2],
+          "FileName": result[3],
+          "Content": result[4],
+          "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
+          "CrawlStatus": result[6],
+          "Note": result[7],
+          "SpiderId": result[8],
+          "Title": result[9],
+          "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
+        })
+      else:
+        return (False, "No Article Exist")
+    except:
+      return (False, "Error when fetching")
     
   def getArticleByUrl(self, url):
     sql_command = '''
@@ -124,7 +126,21 @@ class Singleton(metaclass=SingletonMeta):
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
     SELECT
-        "Id", "Url"
+        count(*)
+    FROM
+        public."Article";
+    '''
+    total_article = 0
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_article = result[0]
+    except:
+      return(False, "Error when checking")
+    
+    sql_command = '''
+    SELECT
+        "Id", "Url", "Title", "FirstCrawlDate", "LastUpdate", "CrawlStatus", "Note"
     FROM
         public."Article"
     ORDER BY
@@ -133,31 +149,48 @@ class Singleton(metaclass=SingletonMeta):
     FETCH FIRST %s ROW ONLY; 
     ''' % (page * pageArticlesNumber, pageArticlesNumber)
   
-    return_value = []
+    article = []
   
-    self.cur.execute(sql_command)
-    result = self.cur.fetchone()
-    while (result):
-      return_value.append({
-        "Id": result[0],
-        "Url": result[1],
-      })
+    try:
+      self.cur.execute(sql_command)
       result = self.cur.fetchone()
+      while (result):
+        article.append({
+          "Id": result[0],
+          "Url": result[1],
+          "Title": result[2],
+          "FirstCrawlDate": result[3].strftime("%m/%d/%Y, %H:%M:%S"),
+          "LastUpdate": result[4].strftime("%m/%d/%Y, %H:%M:%S"),
+          "CrawlStatus": result[5],
+          "Note": result[6]
+        })
+        result = self.cur.fetchone()
+    except:
+      return(False, "Error when fetching")
     
-    return return_value
+    if len(article) == 0:
+      return(False, "No data to fetch")
+    
+    return (True, {
+      "total_article": total_article,
+      "detail": article
+    })
   
   # Keyword Management
   def getTotalKeyword(self) -> int:
     sql_check_command = '''
     SELECT Count(*) FROM public."Keyword";
     '''
+    
+    total_keyword = 0
     try:
       self.cur.execute(sql_check_command)
-    except:
-      return (-1, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
-      return (result[0], "Checking success")
+      total_keyword = result[0]
+    except:
+      return (False, "Error when checking!")
+      
+    return (True, total_keyword)
     
   def getKeywordByPage(self, page, pageKeywordsNumber):
     sql_command = '''
@@ -171,17 +204,25 @@ class Singleton(metaclass=SingletonMeta):
     FETCH FIRST %s ROW ONLY; 
     ''' % (page * pageKeywordsNumber, pageKeywordsNumber)
   
+    return_value = []
     try:
       self.cur.execute(sql_command)
-    except:
-      return []
-    finally:
-      return_value = []
       result = self.cur.fetchone()
       while result:
-        return_value.append(result)
+        return_value.append({
+          "ID": result[0],
+          "Name": result[1],
+          "TotalArticles": result[2],
+          "TotalWords": result[3]
+        })
         result = self.cur.fetchone()
-      return return_value
+    except:
+      return (False, "Error when fetching data")
+
+    if len(return_value) == 0:
+      return (False, "No data to fetch")
+
+    return (True, return_value)
   
   def addKeyword(self, keyword) -> bool:
     # Check if exist
@@ -189,10 +230,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Keyword" WHERE "Name" = '%s';
     ''' % (keyword)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Keyword is already existed!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Keyword is already existed!")
+    except:
+      return (False, "Error when checking!")
     
     # Insert
     sql_insert_command = '''
@@ -203,9 +247,9 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating!")
-    finally:
-      return (True, "New keyword created!")
+    return (True, "New keyword created!")
   
   def deleteKeywordByID(self, id) -> bool:
     # Check if not exist
@@ -213,10 +257,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Keyword" WHERE "ID" = %s;
     ''' % (id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Keyword doesn't exist!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Keyword doesn't exist!")
+    except:
+      return (False, "Error when checking!")
     
     # Delete
     sql_delete_command = '''
@@ -226,9 +273,9 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_delete_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when deleting!")
-    finally:
-      return (True, "Delete completed!")
+    return (True, "Delete completed!")
     
   def editKeywordByID(self, id, new_value) -> bool:
     # Check if not exist
@@ -236,47 +283,54 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Keyword" WHERE "ID" = %s;
     ''' % (id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Keyword doesn't exist!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Keyword doesn't exist!")
+    except:
+      return (False, "Error when checking data!")
     
     # Check if exist
     sql_check_command = '''
     SELECT * FROM public."Keyword" WHERE "Name" = '%s';
     ''' % (new_value)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Keyword is already existed!")
-    
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Keyword is already existed!")
+    except:
+      return (False, "Error when checking data!")
+        
     # Edit
-    sql_delete_command = '''
+    sql_command = '''
     UPDATE public."Keyword"
     SET "Name" = '%s'
     WHERE "ID" = %s;
     ''' % (new_value, id)
     try:
-      self.cur.execute(sql_delete_command)
+      self.cur.execute(sql_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when updating!")
-    finally:
-      return (True, "Update completed!")
+    return (True, "Update completed!")
  
   # File Type Management
   def getTotalSupportedFileType(self) -> int:
     sql_check_command = '''
     SELECT Count(*) FROM public."SupportedFileType";
     '''
+    total_file_type = 0
     try:
       self.cur.execute(sql_check_command)
-    except:
-      return (-1, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
-      return (result[0], "Checking success")
+      total_file_type = result[0]
+    except:
+      return (False, "Error when checking!")
+    return (True, total_file_type)
     
   def getSupportedFileTypeByPage(self, page, pageFileTypesNumber):
     sql_command = '''
@@ -290,17 +344,23 @@ class Singleton(metaclass=SingletonMeta):
     FETCH FIRST %s ROW ONLY; 
     ''' % (page * pageFileTypesNumber, pageFileTypesNumber)
   
+    file_types = []
     try:
       self.cur.execute(sql_command)
-    except:
-      return []
-    finally:
-      return_value = []
       result = self.cur.fetchone()
       while result:
-        return_value.append(result)
+        file_types.append({
+          "ID": result[0],
+          "Name": result[1]
+        })
         result = self.cur.fetchone()
-      return return_value
+    except:
+      return (False, "Error when fetching")
+    
+    if len(file_types) == 0:
+      return (False, "No data to get")
+    
+    return (True, file_types)
   
   def addSupportedFileType(self, fileType) -> bool:
     # Check if exist
@@ -308,11 +368,14 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."SupportedFileType" WHERE "Type" = '%s';
     ''' % (fileType)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "File Type is already existed!")
-    
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if result:
+        return (False, "File Type is already existed!")
+    except:
+      return (False, "Error when fetching")
+
     # Insert
     sql_insert_command = '''
     INSERT INTO public."SupportedFileType" ("Type") Values ('%s');
@@ -322,9 +385,10 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating!")
-    finally:
-      return (True, "New File Type created!")
+    
+    return (True, "New File Type created!")
   
   def deleteSupportedFileTypeByID(self, id) -> bool:
     # Check if not exist
@@ -332,10 +396,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "File Type doesn't exist!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "File Type doesn't exist!")
+    except:
+      return (False, "Error when checking")
     
     # Delete
     sql_delete_command = '''
@@ -345,9 +412,9 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_delete_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when deleting!")
-    finally:
-      return (True, "Delete completed!")
+    return (True, "Delete completed!")
     
   def editSupportedFileTypeByID(self, id, new_value) -> bool:
     # Check if not exist
@@ -355,21 +422,27 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."SupportedFileType" WHERE "ID" = %s;
     ''' % (id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "File Type doesn't exist!")
-    
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "File Type doesn't exist!")
+    except:
+      return (False, "Error when fetching")
+
     # Check if exist
     sql_check_command = '''
     SELECT * FROM public."SupportedFileType" WHERE "Type" = '%s';
     ''' % (new_value)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "File Type is already existed!")
-    
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if result:
+        return (False, "File Type is already existed!")
+    except:
+      return (False, "Error when fetching")
+        
     # Edit
     sql_delete_command = '''
     UPDATE public."SupportedFileType"
@@ -380,9 +453,10 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_delete_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when updating!")
-    finally:
-      return (True, "Update completed!") 
+    
+    return (True, "Update completed!") 
     
   #Article
   def getTotalArticle(self) -> int:
@@ -403,10 +477,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Article" WHERE "Url" = '%s';
     ''' % (url)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if result:
-      return (False, "Article is already existed!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if result:
+        return (False, "Article is already existed!")
+    except:
+      return (False, "Error when checking")
     
     #Create new article
     sql_insert_command = '''
@@ -417,9 +494,9 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating article!")
-    finally:
-      return (True, "New article created!")
+    return (True, "New article created!")
     
   def editArticle(self, article_id, title, domain, url, content):
     #Check if not existed
@@ -427,10 +504,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Article" WHERE "Id" = %s;
     ''' % (article_id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Article doesn't exist!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Article doesn't exist!")
+    except:
+      return (False, "Error when checking")
     
     #Update article
     current = datetime.now()
@@ -452,31 +532,7 @@ class Singleton(metaclass=SingletonMeta):
     except:
       self.cur.execute("ROLLBACK;")
       return (False, "Error when updating article!")
-    finally:
-      return (True, "Article has been updated successfully!")
-    
-  def deleteArticleByUrl(self, url):
-    #Check if existed
-    sql_check_command = '''
-    SELECT * FROM public."Article" WHERE "Url" = '%s';
-    ''' % (url)
-    
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Article isn't existed!")
-    
-    # Delete article
-    sql_delete_command = '''
-    DELETE FROM public."Article" WHERE "Url" = '%s';
-    ''' % (url)
-    try:
-      self.cur.execute(sql_delete_command)
-      self.connection.commit()
-    except:
-      return (False, "Error when deleting article!")
-    finally:
-      return (True, "Delete article completed!")
+    return (True, "Article has been updated successfully!")
     
   def deleteArticleById(self, id):
     #Check if existed
@@ -484,10 +540,13 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * FROM public."Article" WHERE "Id" = %s;
     ''' % (id)
     
-    self.cur.execute(sql_check_command)
-    result = self.cur.fetchone()
-    if not(result):
-      return (False, "Article isn't existed!")
+    try:
+      self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Article isn't existed!")
+    except:
+      return (False, "Error when fetching")
     
     # Delete article
     sql_delete_command = '''
@@ -497,6 +556,7 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_delete_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when deleting article!")
     finally:
       return (True, "Delete article completed!")
@@ -668,7 +728,7 @@ class Singleton(metaclass=SingletonMeta):
     return (True, "Create keyword successfully")   
 
   #Webpage Spider  
-  def createWebpageSpider(self, url, delay = 2.5, graphDeep = 3, maxThread = 1, crawlRules = [], fileTypes = [], keywords = []):
+  def createWebpageSpider(self, url, crawlRules = [], fileTypes = [], keywords = []):
     #Check if existed
     sql_check_command = '''
     SELECT * FROM public."Spider" WHERE "Url" = '%s';
@@ -676,23 +736,18 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_check_command)
-      self.connection.commit()
-    except:
-      return (False, "Error when checking!")
-
-    try: 
       result = self.cur.fetchone()
       if result:
         return (False, "Spider is already existed!")  
-    except: 
+    except:
       return (False, "Error when fecthing checking data")  
 
     #Create new spider
     #Create base Spider
     sql_insert_select_command = '''
-    INSERT INTO public."Spider" ("Url", "Delay", "GraphDeep", "MaxThread") Values ('%s', %s, %s, %s);
+    INSERT INTO public."Spider" ("Url") Values ('%s');
     SELECT * FROM public."Spider" WHERE "Url" = '%s';
-    ''' % (url, delay, graphDeep, maxThread, url)
+    ''' % (url, url)
 
     try:
       self.cur.execute(sql_insert_select_command)
@@ -716,7 +771,6 @@ class Singleton(metaclass=SingletonMeta):
     ''' % (spider_ID)
     
     try:
-      print(sql_insert_command)
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
@@ -739,17 +793,32 @@ class Singleton(metaclass=SingletonMeta):
     
     return (True, "Create Webpage Spider Complete")
   
-  def getWebpageSpider(self):
-    sql_select_command = '''
-    SELECT *
+  def getWebpageSpider(self, page = 0, spiderPerPage = 10):
+    sql_command = '''
+    SELECT count(*)
     FROM public."Spider", public."WebpageSpider"
     WHERE public."Spider"."ID" = public."WebpageSpider"."ID";
     '''
+    total_spider = 0
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_spider = result[0]
+    except:
+      return (False, "Error when fetching data")      
+    
+    sql_command = '''
+    SELECT *
+    FROM public."Spider", public."WebpageSpider"
+    WHERE public."Spider"."ID" = public."WebpageSpider"."ID"
+    ORDER BY public."Spider"."ID" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (page * spiderPerPage, spiderPerPage)
 
     return_value = []
-  
     try:
-      self.cur.execute(sql_select_command)
+      self.cur.execute(sql_command)
       result = self.cur.fetchone()
       while (result):
         LastRunDate = ""
@@ -769,15 +838,19 @@ class Singleton(metaclass=SingletonMeta):
           "LastEndDate": LastEndDate,
           "RunTime": result[6],
           "isBlocked": result[7],
-          #"Delay": result[8],
-          #"MaxThread": result[10],
           "JobId": result[12],
         })
         result = self.cur.fetchone()
     except:
       return (False, "Error when fetching data")
     
-    return (True, return_value)
+    if len(return_value) == 0:
+      return (False, "No data to fetch")
+    
+    return (True, {
+      "total_spider": total_spider,
+      "detail": return_value
+    })
   
   def getWebpageSpiderById(self, id):
     sql_select_command = '''
@@ -875,7 +948,6 @@ class Singleton(metaclass=SingletonMeta):
         "RunTime" = '%s'
         WHERE "ID" = %s;            
         ''' % (reformatted_current, totalRunTimeAsInt, result[0])   
-        
       else:
         return (False, "No Webpage Spider Exist")
     except:
@@ -885,6 +957,7 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_select_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when assigning data")
     
     return (True, "Update Spider Closing Status Successfully") 
@@ -909,10 +982,7 @@ class Singleton(metaclass=SingletonMeta):
         return (False, "No Webpage Spider Exist")
     except:
       return (False, "Error when fetching data")
-    
-    
-    return (True, "Update Spider Closing Status Successfully") 
-  
+      
   #Website Spider  
   def createWebsiteSpider(self, url, delay = 2.5, graphDeep = 2, maxThread = 1, crawlRules = [], fileTypes = [], keywords = []):
     #Check if existed
@@ -970,12 +1040,29 @@ class Singleton(metaclass=SingletonMeta):
 
     return (True, "Create Website Spider Complete")
   
-  def getWebsiteSpider(self):
-    sql_select_command = '''
-    SELECT *
+  def getWebsiteSpider(self, page = 0, spiderPerPage = 10):
+    sql_command = '''
+    SELECT COUNT(*)
     FROM public."Spider", public."WebsiteSpider"
     WHERE public."Spider"."ID" = public."WebsiteSpider"."ID";
     '''
+    total_spider = 0
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_spider = result[0]
+    except:
+      return (False, "Error when checking data")
+    
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID"
+    ORDER BY public."Spider"."ID" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (page * spiderPerPage, spiderPerPage)
 
     return_value = []
   
@@ -1012,7 +1099,13 @@ class Singleton(metaclass=SingletonMeta):
     except:
       return (False, "Error when fetching data")
     
-    return (True, return_value)
+    if len(return_value) == 0:
+      return (False, "No data to fetch")
+    
+    return (True, {
+      "total_spider": total_spider,
+      "detail": return_value
+    })
   
   def getWebsiteSpiderById(self, id):
     sql_select_command = '''
