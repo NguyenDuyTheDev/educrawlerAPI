@@ -1086,6 +1086,20 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute("ROLLBACK;")
       return (False, "Error when creating webpage spider!")    
 
+    #Insert Keyword
+    for keywordID in keywords:
+      self.createSpiderKeyword(
+        spiderID=spider_ID,
+        keywordId=keywordID
+      )
+    
+    #Insert File Type
+    for fileTypeID in fileTypes:
+      self.createSpiderFileType(
+        spiderID=spider_ID,
+        fileTypeId=fileTypeID
+      )
+
     return (True, "Create Website Spider Complete")
   
   def getWebsiteSpider(self, page = 0, spiderPerPage = 10):

@@ -376,16 +376,23 @@ def create_webpage_spider(spider_status: WebpageSpider):
 @app.post("/webpageSpider/{spider_id}/run", status_code=201, tags=["Webpage Spider"])
 def run_webpage_spider(spider_id: int):
   webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
-  url = ""
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
   
+  keywords = webpage_spider_information[1]["Keyword"]
+  keywords_as_string: str = ''
+  for word in keywords:
+    keywords_as_string = keywords_as_string + word["Value"] + ','
+  keywords_as_string = keywords_as_string[:-1]
+  print(keywords_as_string)
+    
   api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
   body = {
     "project": "default",
     "spider": "WebpageSpider",
     "link": webpage_spider_information[1]["Url"],
-    "spider_id": spider_id
+    "spider_id": spider_id,
+    "keywords": keywords_as_string
   }  
   res = requests.post(
     api_endpoint,
@@ -481,6 +488,13 @@ def run_website_spider(spider_id: int):
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
   
+  keywords = webpage_spider_information[1]["Keyword"]
+  keywords_as_string: str = ''
+  for word in keywords:
+    keywords_as_string = keywords_as_string + word["Value"] + ','
+  keywords_as_string = keywords_as_string[:-1]
+  print(keywords_as_string)
+  
   api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
   body = {
     "project": "default",
@@ -490,6 +504,7 @@ def run_website_spider(spider_id: int):
     "delay": webpage_spider_information[1]["Delay"],
     "graphDeep": webpage_spider_information[1]["GraphDeep"],
     "maxThread": webpage_spider_information[1]["MaxThread"],
+    "keywords": keywords_as_string
   }  
   res = requests.post(
     api_endpoint,
