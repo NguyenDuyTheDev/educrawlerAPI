@@ -280,6 +280,17 @@ def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
+@app.get("/webpageSpider/{spider_id}", status_code=201, tags=["Webpage Spider"])
+def get_webpage_spider_by_id(spider_id: int):
+  res = databaseAPI.getWebpageSpiderById(
+    id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No Webpage Spider Exist":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
 @app.post("/webpageSpider", status_code=201, tags=["Webpage Spider"])
 def create_webpage_spider(spider_status: WebpageSpider):
   if databaseAPI.isOverStorage():
@@ -450,6 +461,17 @@ def get_website_spider(page: int = 0, spiderPerPage: int = 10):
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
   if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
+@app.get("/websiteSpider/{spider_id}", status_code=200, tags=["Website Spider"])
+def get_website_spider_by_id(spider_id: int):
+  res = databaseAPI.getWebsiteSpiderById(
+    id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No Website Spider Exist":
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
@@ -636,7 +658,7 @@ def create_website_spider(spider_status: WebsiteSpider):
     return JSONResponse(status_code=500, content={"message": res[1]}) 
   
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
-def get_total_article_get_from_website_spider(spider_id: int, page: int = 0, articlePerPage: int = 10):
+def get_total_article_crawled_from_website_spider(spider_id: int, page: int = 0, articlePerPage: int = 10):
   res = databaseAPI.getSpiderTotalAriticle(spider_id)
     
   if res[0]:

@@ -860,29 +860,77 @@ class Singleton(metaclass=SingletonMeta):
     ''' % (id)
 
     return_value = {}
-  
     try:
       self.cur.execute(sql_select_command)
       result = self.cur.fetchone()
       if (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")
+        
         return_value = {
           "Id": result[0],
           "Url": result[1],
           "Status": result[2],
           "CrawlStatus": result[3],
-          "LastRunDate": result[4],
-          "LastEndDate": result[5],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
           "RunTime": result[6],
           "isBlocked": result[7],
-          "Delay": result[8],
-          "MaxThread": result[10],
           "JobId": result[12],
+          "Keyword": [],
+          "FileType": [],
         }
         result = self.cur.fetchone()
       else:
         return (False, "No Webpage Spider Exist")
     except:
       return (False, "Error when fetching data")
+        
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderKeyword", public."Keyword"
+    WHERE public."SpiderKeyword"."KeywordID" = public."Keyword"."ID" and public."SpiderKeyword"."SpiderID" = %s;
+    ''' % (id)
+    
+    spider_keyword = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        spider_keyword.append({
+          "Id": result[0],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["Keyword"] = spider_keyword
+
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderSupportedFileType", public."SupportedFileType"
+    WHERE public."SpiderSupportedFileType"."FileTypeID" = public."SupportedFileType"."ID" and public."SpiderSupportedFileType"."SpiderID" = %s;
+    ''' % (id)
+    
+    file_type = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        file_type.append({
+          "Id": result[1],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["FileType"] = file_type
     
     return (True, return_value)    
 
@@ -1120,13 +1168,21 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_select_command)
       result = self.cur.fetchone()
       if (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
         return_value = {
           "Id": result[0],
           "Url": result[1],
           "Status": result[2],
           "CrawlStatus": result[3],
-          "LastRunDate": result[4],
-          "LastEndDate": result[5],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
           "RunTime": result[6],
           "isBlocked": result[7],
           "Delay": result[8],
@@ -1136,12 +1192,56 @@ class Singleton(metaclass=SingletonMeta):
           "TotalPage": result[14],
           "CrawlSuccess": result[15],
           "CrawlFail": result[16],
+          "Keyword": [],
+          "FileType": [],
         }
         result = self.cur.fetchone()
       else:
         return (False, "No Website Spider Exist")
     except:
       return (False, "Error when fetching data")
+
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderKeyword", public."Keyword"
+    WHERE public."SpiderKeyword"."KeywordID" = public."Keyword"."ID" and public."SpiderKeyword"."SpiderID" = %s;
+    ''' % (id)
+    
+    spider_keyword = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        spider_keyword.append({
+          "Id": result[0],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["Keyword"] = spider_keyword
+
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderSupportedFileType", public."SupportedFileType"
+    WHERE public."SpiderSupportedFileType"."FileTypeID" = public."SupportedFileType"."ID" and public."SpiderSupportedFileType"."SpiderID" = %s;
+    ''' % (id)
+    
+    file_type = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        file_type.append({
+          "Id": result[1],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["FileType"] = file_type
     
     return (True, return_value)    
 
@@ -1183,22 +1283,69 @@ class Singleton(metaclass=SingletonMeta):
     return (True, "Update Spider JobId Successfully") 
   
   # Spider
-  def getSpiderTotalAriticle(self, spider_id):
+  def getSpiderTotalAriticle(self, spider_id, page = 0, articlePerPage = 10):
     sql_select_command = '''
     SELECT count(*)
     FROM public."Article"
     WHERE "SpiderId" = %s;
     ''' % (spider_id)
   
+    total_article = 0
     try:
       self.cur.execute(sql_select_command)
       result = self.cur.fetchone()
       if (result):
-        return (True, result[0])
+        total_article = result[0]
       else:
         return (False, "Error when fetching data")
     except:
       return (False, "Error when fetching data")
+    
+    sql_command = '''
+    SELECT *
+    FROM public."Article"
+    WHERE "SpiderId" = %s
+    ORDER BY public."Article"."Id" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (spider_id, page * articlePerPage, articlePerPage)
+
+    detail = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        LastUpdate = ""
+        if result[5]:
+          LastUpdate = result[5].strftime("%m-%d-%Y %H:%M:%S")
+ 
+        FirstCrawlDate = ""
+        if result[10]:
+          FirstCrawlDate = result[10].strftime("%m-%d-%Y %H:%M:%S")
+        
+        detail.append({
+          "Id": result[0],
+          "Domain": result[1],
+          "Url": result[2],
+          #"Content": result[4],
+          "LastUpdate": LastUpdate,
+          "CrawlStatus": result[6],
+          "Note": result[7],
+          "Title": result[9],
+          "FirstCrawlDate": FirstCrawlDate,
+        })
+        result = self.cur.fetchone()
+    except(KeyError):
+      print(KeyError)
+      return (False, "Error when fetching article data")
+    
+    if len(detail) == 0: 
+      return (False, "No data to fetch")
+    
+    return (True, {
+      "total_article": total_article,
+      "detail": detail
+    })
   
   def deleteSpider(self, spider_id):
     sql_select_command = '''
