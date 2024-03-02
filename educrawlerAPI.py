@@ -659,7 +659,7 @@ def create_website_spider(spider_status: WebsiteSpider):
   
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
 def get_total_article_crawled_from_website_spider(spider_id: int, page: int = 0, articlePerPage: int = 10):
-  res = databaseAPI.getSpiderTotalAriticle(spider_id)
+  res = databaseAPI.getSpiderTotalAriticle(spider_id, page=page, articlePerPage=articlePerPage)
     
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
