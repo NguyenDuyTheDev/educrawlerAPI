@@ -2,6 +2,7 @@ from typing import Union, List
 from enum import Enum
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from databaseAPI import Singleton
@@ -15,6 +16,15 @@ import re
 
 databaseAPI = Singleton()
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 from pydantic import BaseModel
 
 class Message(BaseModel):
