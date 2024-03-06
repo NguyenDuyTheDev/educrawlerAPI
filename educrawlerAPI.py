@@ -53,6 +53,9 @@ def get_introduction():
           "1": "Add simple user endpoint for further feature: User create Spider",
           "2": "Add error handler for most of database change feature",
           "3": "Change every get all feature to get by page"
+        },
+        "06/03": {
+          "1": "Fix bug"
         }
       }
     }
