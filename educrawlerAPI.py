@@ -708,7 +708,6 @@ def create_website_spider(spider_status: WebsiteSpider):
         "maxThread": spider_status.maxThread,
         "keyword": spider_status.keyword,
         "filetype": spider_status.filetype,
-        "relatedRule": relatedCrawlrule,
         "realRule": afterReformatCrawlRules,
         "Subfolder": subFolders
       }
