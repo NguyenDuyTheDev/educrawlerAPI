@@ -564,48 +564,46 @@ class Singleton(metaclass=SingletonMeta):
   # CrawlRules
   def createCrawlRules(self, tag, className, IDName, child = None):
     if child == None or len(child) == 0:
-      sql_insert_command = '''
+      sql_command = '''
       INSERT INTO public."CrawlRules" ("Tag", "HTMLClassName", "HTMLIDName") Values ('%s', '%s', '%s');
-      ''' % (tag, className, IDName)
-      sql_check_command = '''
       SELECT * FROM public."CrawlRules" WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s';
-      ''' % (tag, className, IDName)
+      ''' % (tag, className, IDName, tag, className, IDName)
 
       try:
-        self.cur.execute(sql_insert_command)
+        self.cur.execute(sql_command)
         self.connection.commit()
-        self.cur.execute(sql_check_command)
         result = self.cur.fetchone()
         if not(result):
-          return (-1, "Error when creating crawlRules!")
+          return (False, "Error when creating crawlRules!")
       except:
-        return (-1, "Error when creating crawlRules!")
-      finally:
-        return (result[0], "Create crawlRules successfully")
+        self.cur.execute("ROLLBACK;")
+        return (False, "Error when creating crawlRules!")
+      return (True, result[0])
         
     else:
-      childID = self.createCrawlRules(child[0], child[1], child[2], child[3])
-      if childID[0] == -1:
-        return (-1, "Error when creating crawlRules!")
+      childID = ()
+      if len(child) == 3:
+        childID = self.createCrawlRules(child[0], child[1], child[2])
+      else:
+        childID = self.createCrawlRules(child[0], child[1], child[2], child[3])
+      if childID[0] == False:
+        return (False, "Error when creating crawlRules!")
       
-      sql_insert_command = '''
+      sql_command = '''
       INSERT INTO public."CrawlRules" ("Tag", "HTMLClassName", "HTMLIDName", "ChildCrawlRuleID") Values ('%s', '%s', '%s', %s);
-      ''' % (tag, className, IDName, childID[0])
-      sql_check_command = '''
       SELECT * FROM public."CrawlRules" WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s' AND "ChildCrawlRuleID" = %s;
-      ''' % (tag, className, IDName, childID[0])
+      ''' % (tag, className, IDName, childID[1], tag, className, IDName, childID[1])
 
       try:
-        self.cur.execute(sql_insert_command)
+        self.cur.execute(sql_command)
         self.connection.commit()
-        self.cur.execute(sql_check_command)
         result = self.cur.fetchone()
         if not(result):
-          return (-1, "Error when creating crawlRules!")
+          return (False, "Error when creating crawlRules!")
       except:
-        return (-1, "Error when creating crawlRules!")
-      finally:
-        return (result[0], "Create crawlRules successfully")      
+        self.cur.execute("ROLLBACK;")
+        return (False, "Error when creating crawlRules!")
+      return (True, result[0])      
       
   # Webpage Spider CrawlRules
   def createWebpageSpiderCrawlRules(self, spiderID, crawlRuleId): 
@@ -616,26 +614,24 @@ class Singleton(metaclass=SingletonMeta):
     
     try:
       self.cur.execute(sql_check_command)
-    except:
-      return (False, "Error when checking!")
-    finally:
       result = self.cur.fetchone()
       if not(result):
-        return (False, "Spider is not existed!")      
-    
+        return (False, "Spider is not existed!")    
+    except:
+      return (False, "Error when checking!")
+        
     sql_check_command = '''
     SELECT * FROM public."CrawlRules" WHERE "ID" = %s;
     ''' % (crawlRuleId)
     
     try:
       self.cur.execute(sql_check_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "CrawlRule is not existed!")      
     except:
       return (False, "Error when checking!")
-    finally:
-      result = self.cur.fetchone()
-      if result:
-        return (False, "CrawlRule is not existed!")      
-    
+
     # Create
     sql_insert_command = '''
     INSERT INTO public."WebpageSpiderCrawlRules" ("SpiderID", "CrawlRulesID") Values (%s, %s);
@@ -644,9 +640,9 @@ class Singleton(metaclass=SingletonMeta):
       self.cur.execute(sql_insert_command)
       self.connection.commit()
     except:
+      self.cur.execute("ROLLBACK;")
       return (False, "Error when creating crawlRules!")
-    finally:
-      return (True, "Create crawlRules successfully")     
+    return (True, "Create crawlRules successfully")     
         
   #Spider
   def createSpiderKeyword(self, spiderID, keywordId): 
@@ -728,7 +724,9 @@ class Singleton(metaclass=SingletonMeta):
     return (True, "Create keyword successfully")   
 
   #Webpage Spider  
-  def createWebpageSpider(self, url, crawlRules = [], fileTypes = [], keywords = []):
+  def createWebpageSpider(self, url, crawlRules = [], fileTypes = [], keywords = []):    
+    print(crawlRules)
+    
     #Check if existed
     sql_check_command = '''
     SELECT * FROM public."Spider" WHERE "Url" = '%s';
@@ -790,6 +788,44 @@ class Singleton(metaclass=SingletonMeta):
         spiderID=spider_ID,
         fileTypeId=fileTypeID
       )
+    
+    #Insert CrawlRule
+    for rule in crawlRules:
+      if len(rule) == 3:
+        ruleRes = self.createCrawlRules(
+          tag=rule[0],
+          className=rule[1],
+          IDName=rule[2]
+        )
+        if ruleRes[0] == False:
+          print(addRuleRes[1])
+          continue
+        
+        print(ruleRes[1])
+        addRuleRes = self.createWebpageSpiderCrawlRules(
+          spiderID=spider_ID,
+          crawlRuleId=ruleRes[1]
+        )
+        if addRuleRes[0] == False:
+          print(addRuleRes[1])
+          continue
+        
+      else:
+        ruleRes = self.createCrawlRules(
+          tag=rule[0],
+          className=rule[1],
+          IDName=rule[2],
+          child=rule[3]
+        )
+        if ruleRes[0] == False:
+          continue
+        
+        addRuleRes = self.createWebpageSpiderCrawlRules(
+          spiderID=spider_ID,
+          crawlRuleId=ruleRes[1]
+        )
+        if addRuleRes[0] == False:
+          continue
     
     return (True, "Create Webpage Spider Complete")
   
@@ -883,6 +919,7 @@ class Singleton(metaclass=SingletonMeta):
           "JobId": result[12],
           "Keyword": [],
           "FileType": [],
+          "CrawlRule": [],
         }
         result = self.cur.fetchone()
       else:
@@ -890,6 +927,7 @@ class Singleton(metaclass=SingletonMeta):
     except:
       return (False, "Error when fetching data")
         
+    # Keyword
     sql_command = '''
     SELECT *
     FROM public."SpiderKeyword", public."Keyword"
@@ -911,6 +949,7 @@ class Singleton(metaclass=SingletonMeta):
     
     return_value["Keyword"] = spider_keyword
 
+    # File Type
     sql_command = '''
     SELECT *
     FROM public."SpiderSupportedFileType", public."SupportedFileType"
@@ -931,6 +970,59 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when fetching keyword data")
     
     return_value["FileType"] = file_type
+    
+    # Crawl Rules
+    sql_command = '''
+    SELECT *
+    FROM public."WebpageSpiderCrawlRules", public."CrawlRules"
+    WHERE public."WebpageSpiderCrawlRules"."CrawlRulesID" = public."CrawlRules"."ID" and public."WebpageSpiderCrawlRules"."SpiderID" = %s;
+    ''' % (id)
+    
+    crawl_rules = []
+    child_crawl_rules_id = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        crawl_rules.append({
+          "Id": result[1],
+          "Tag": result[3],
+          "ClassName": result[4],
+          "IDName": result[5],
+          "ChildId": result[6],
+        })
+        if result[6] != None:
+          child_crawl_rules_id.append(result[6])
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching crawlrule data")
+    
+    while len(child_crawl_rules_id) > 0:
+      sql_command = '''
+      SELECT *
+      FROM public."CrawlRules"
+      WHERE public."CrawlRules"."ID" = %s;
+      ''' % (child_crawl_rules_id[0])
+      
+      
+      try:
+        self.cur.execute(sql_command)
+        result = self.cur.fetchone()
+        if result:
+          crawl_rules.append({
+            "Id": result[0],
+            "Tag": result[1],
+            "ClassName": result[2],
+            "IDName": result[3],
+            "ChildId": result[4],
+          })
+          if result[4] != None:
+            child_crawl_rules_id.append(result[4])
+          child_crawl_rules_id.pop(0)
+      except:
+        return (False, "Error when fetching crawlrule data")
+    
+    return_value["CrawlRule"] = crawl_rules
     
     return (True, return_value)    
 

@@ -314,8 +314,8 @@ def create_webpage_spider(spider_status: WebpageSpider):
   for rule in spider_status.crawlRules:
     if rule.tag == "":
       return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
-    if rule.HTMLClassName == "" and rule.HTMLIDName == "":
-      return JSONResponse(status_code=422, content={"detail": "HTMLClassName or HTMLIDName must have value"})
+    if rule.id < 1:
+      return JSONResponse(status_code=422, content={"detail": "Id should start from 1"})    
     
     crawlRule.append({
       "id": rule.id,
