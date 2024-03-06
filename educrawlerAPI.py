@@ -301,6 +301,15 @@ def get_webpage_spider_by_id(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
+@app.get("/webpageSpider/{spider_id}/crawl_rule", status_code=201, tags=["Webpage Spider"])
+def get_webpage_spider_crawl_rule_by_id(spider_id: int):
+  res = databaseAPI.getWebpageSpiderCrawlRulebyID(
+    id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
 @app.post("/webpageSpider", status_code=201, tags=["Webpage Spider"])
 def create_webpage_spider(spider_status: WebpageSpider):
   if databaseAPI.isOverStorage():
@@ -395,6 +404,12 @@ def run_webpage_spider(spider_id: int):
     keywords_as_string = keywords_as_string + word["Value"] + ','
   keywords_as_string = keywords_as_string[:-1]
   print(keywords_as_string)
+  
+  crawl_rule = databaseAPI.getWebpageSpiderCrawlRulebyID(spider_id)
+  crawl_rule_as_string = ""
+  if crawl_rule[0] == True:
+    crawl_rule_as_string = ",".join(crawl_rule[1])
+    print(crawl_rule_as_string)
     
   api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
   body = {
@@ -402,7 +417,8 @@ def run_webpage_spider(spider_id: int):
     "spider": "WebpageSpider",
     "link": webpage_spider_information[1]["Url"],
     "spider_id": spider_id,
-    "keywords": keywords_as_string
+    "keywords": keywords_as_string,
+    "crawlRule": crawl_rule_as_string
   }  
   res = requests.post(
     api_endpoint,
@@ -459,6 +475,11 @@ def get_last_run_time(spider_id: int):
   return JSONResponse(status_code=500, content="Can not calculate")
 
 # Website Spider
+class SubFolder(BaseModel):
+    url: str
+    crawlRules: List[CrawlRule]
+    searchRules: List[CrawlRule]
+
 class WebsiteSpider(BaseModel):
     url: str
     delay: float
@@ -466,8 +487,8 @@ class WebsiteSpider(BaseModel):
     maxThread: int
     keyword: List[int] 
     filetype: List[int]
-    crawlRules: List[CrawlRule]
-
+    subfolders: List[SubFolder]
+    
 @app.get("/websiteSpider", status_code=200, tags=["Website Spider"])
 def get_website_spider(page: int = 0, spiderPerPage: int = 10):
   res = databaseAPI.getWebsiteSpider(
@@ -597,57 +618,73 @@ def create_website_spider(spider_status: WebsiteSpider):
   if spider_status.maxThread > 8:
     return JSONResponse(status_code=403, content={"detail": "Spider does not support max thread deep greater than 8"})
     
-  # Format Crawl Rule
-  crawlRule = []
-  
-  for rule in spider_status.crawlRules:
-    if rule.tag == "":
-      return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
-    if rule.HTMLClassName == "" and rule.HTMLIDName == "":
-      return JSONResponse(status_code=422, content={"detail": "HTMLClassName or HTMLIDName must have value"})
-    
-    crawlRule.append({
-      "id": rule.id,
-      "tag": rule.tag,
-      "HTMLClassName": rule.HTMLClassName,
-      "HTMLIDName": rule.HTMLIDName,
-      "ChildCrawlRuleID": rule.ChildCrawlRuleID
-    }) 
-  
-  relatedCrawlrule = []
-  for index in range(0, len(spider_status.crawlRules)):
-    isChildrenRule = False
-    
-    for existedCrawlrule in range(0, len(relatedCrawlrule)):
-      for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
-        if spider_status.crawlRules[subcrawlRule].ChildCrawlRuleID == spider_status.crawlRules[index].id:
-          isChildrenRule = True
-          relatedCrawlrule[existedCrawlrule].append(index)
-          break
-        
-      if isChildrenRule == True:
-        break
-    
-    if isChildrenRule == False:
-      relatedCrawlrule.append([index])
-  
+  # Format Crawl Rule and search rule for subfolder
+  subFolders = []
   afterReformatCrawlRules = []
-  for longRule in relatedCrawlrule:
-    rules = []
-
-    for rule in longRule:
-      rules.append(
-        [
-          spider_status.crawlRules[rule].tag,
-          spider_status.crawlRules[rule].HTMLClassName,
-          spider_status.crawlRules[rule].HTMLIDName,
-        ]
-      )
+  
+  for folder in spider_status.subfolders:
+    crawlRule = []
+    folderReformatCrawlRule = []
+  
+    # Crawl Rules
+    for rule in folder.crawlRules:
+      if rule.tag == "":
+        return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
       
-    for index in range(1, len(rules)):
-      rules[index - 1].append(rules[index])
+      crawlRule.append({
+        "id": rule.id,
+        "tag": rule.tag,
+        "HTMLClassName": rule.HTMLClassName,
+        "HTMLIDName": rule.HTMLIDName,
+        "ChildCrawlRuleID": rule.ChildCrawlRuleID
+      }) 
+    
+    relatedCrawlrule = []
+    for index in range(0, len(folder.crawlRules)):
+      isChildrenRule = False
       
-    afterReformatCrawlRules.append(rules[0])
+      for existedCrawlrule in range(0, len(relatedCrawlrule)):
+        for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
+          if folder.crawlRules[subcrawlRule].ChildCrawlRuleID == folder.crawlRules[index].id:
+            isChildrenRule = True
+            relatedCrawlrule[existedCrawlrule].append(index)
+            break
+          
+        if isChildrenRule == True:
+          break
+      
+      if isChildrenRule == False:
+        relatedCrawlrule.append([index])
+    
+    for longRule in relatedCrawlrule:
+      rules = []
+      for rule in longRule:
+        rules.append(
+          [
+            folder.crawlRules[rule].tag,
+            folder.crawlRules[rule].HTMLClassName,
+            folder.crawlRules[rule].HTMLIDName,
+          ]
+        )
+        
+      for index in range(1, len(rules)):
+        rules[index - 1].append(rules[index])
+        
+      afterReformatCrawlRules.append(rules[0])
+      folderReformatCrawlRule.append(rules[0])
+    
+    # Search Rules
+    searchRules = []
+    
+    for rule in folder.searchRules:
+      if rule.tag == "":
+        return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+      
+      searchRules.append([
+        rule.tag, rule.HTMLClassName, rule.HTMLIDName
+      ])
+    
+    subFolders.append((folder.url, folderReformatCrawlRule, searchRules))
     
   # Create in db
   res = databaseAPI.createWebsiteSpider(
@@ -657,7 +694,8 @@ def create_website_spider(spider_status: WebsiteSpider):
     maxThread=spider_status.maxThread,
     crawlRules=afterReformatCrawlRules,
     fileTypes=spider_status.filetype,
-    keywords=spider_status.keyword
+    keywords=spider_status.keyword,
+    subfolder=subFolders
   )
 
   if res[0] == True:
@@ -672,7 +710,8 @@ def create_website_spider(spider_status: WebsiteSpider):
         "filetype": spider_status.filetype,
         "crawlRules": crawlRule,
         "relatedRule": relatedCrawlrule,
-        "realRule": afterReformatCrawlRules
+        "realRule": afterReformatCrawlRules,
+        "Subfolder": subFolders
       }
     )
   else:
