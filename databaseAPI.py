@@ -1004,7 +1004,6 @@ class Singleton(metaclass=SingletonMeta):
       WHERE public."CrawlRules"."ID" = %s;
       ''' % (child_crawl_rules_id[0])
       
-      
       try:
         self.cur.execute(sql_command)
         result = self.cur.fetchone()
