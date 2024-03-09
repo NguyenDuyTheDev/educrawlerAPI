@@ -920,6 +920,7 @@ class Singleton(metaclass=SingletonMeta):
           "Keyword": [],
           "FileType": [],
           "CrawlRule": [],
+          "IsAcademic": result[13],
         }
         result = self.cur.fetchone()
       else:
@@ -1369,11 +1370,12 @@ class Singleton(metaclass=SingletonMeta):
           "GraphDeep": result[9],
           "MaxThread": result[10],
           "JobId": result[12],
-          "TotalPage": result[14],
-          "CrawlSuccess": result[15],
-          "CrawlFail": result[16],
+          "TotalPage": result[15],
+          "CrawlSuccess": result[16],
+          "CrawlFail": result[17],
           "Keyword": [],
           "FileType": [],
+          "IsAcademic": result[13],
         }
         result = self.cur.fetchone()
       else:

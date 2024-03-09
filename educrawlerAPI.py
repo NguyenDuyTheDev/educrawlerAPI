@@ -421,7 +421,8 @@ def run_webpage_spider(spider_id: int):
     "link": webpage_spider_information[1]["Url"],
     "spider_id": spider_id,
     "keywords": keywords_as_string,
-    "crawlRule": crawl_rule_as_string
+    "crawlRule": crawl_rule_as_string,
+    "isAcademic": webpage_spider_information[1]["IsAcademic"]
   }  
   res = requests.post(
     api_endpoint,
@@ -538,7 +539,8 @@ def run_website_spider(spider_id: int):
     "delay": webpage_spider_information[1]["Delay"],
     "graphDeep": webpage_spider_information[1]["GraphDeep"],
     "maxThread": webpage_spider_information[1]["MaxThread"],
-    "keywords": keywords_as_string
+    "keywords": keywords_as_string,
+    "isAcademic": webpage_spider_information[1]["IsAcademic"]
   }  
   res = requests.post(
     api_endpoint,
