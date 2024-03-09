@@ -566,7 +566,10 @@ class Singleton(metaclass=SingletonMeta):
     if child == None or len(child) == 0:
       sql_command = '''
       INSERT INTO public."CrawlRules" ("Tag", "HTMLClassName", "HTMLIDName") Values ('%s', '%s', '%s');
-      SELECT * FROM public."CrawlRules" WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s';
+      SELECT * 
+      FROM public."CrawlRules" 
+      WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s'
+      ORDER BY "ID" DESC;
       ''' % (tag, className, IDName, tag, className, IDName)
 
       try:
@@ -1199,7 +1202,124 @@ class Singleton(metaclass=SingletonMeta):
       return (False, "Error when fetching data")
       
   #Website Spider  
-  def createWebsiteSpider(self, url, delay = 2.5, graphDeep = 2, maxThread = 1, crawlRules = [], fileTypes = [], keywords = [], subfolder = []):
+  def addCrawlRuleToSubfolder(
+    self, 
+    subFolderId,
+    crawlRulesID,
+    spiderID
+  ):
+    sql_command = '''
+    INSERT INTO public."SubfolderCrawlRules" ("SubFolderID", "SpiderID", "CrawlRulesId")
+    VALUES (%s, %s, %s);
+    ''' % (subFolderId, spiderID, crawlRulesID)
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")    
+
+  def addSearchRuleToSubfolder(
+    self, 
+    subFolderId,
+    searchRuleId,
+    spiderID
+  ):
+    sql_command = '''
+    INSERT INTO public."UrlSearchRules" ("SubFolderID", "SpiderID", "SearchRuleID")
+    VALUES (%s, %s, %s);
+    ''' % (subFolderId, spiderID, searchRuleId)
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except :
+      print("bug")
+      self.cur.execute("ROLLBACK;")    
+  
+  def createSubFolder(
+    self,
+    subFolder,
+    spider_id
+  ):
+    print(subFolder)
+    sql_command = '''
+    INSERT INTO public."Subfolder" ("SpiderID", "Name")
+    VALUES (%s, '%s');
+    SELECT * 
+    FROM public."Subfolder"
+    WHERE "SpiderID" = %s
+    ORDER BY "SubfolderID" DESC;
+    ''' % (spider_id, subFolder[0], spider_id)
+    
+    subFolder_id = -1
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+      result = self.cur.fetchone()
+      if not(result):
+        return
+      
+      subFolder_id = result[1]
+    except:
+      self.cur.execute("ROLLBACK;")
+      
+    for crawlRule in subFolder[1]:
+      crawlRuleID = -1
+      if len(crawlRule) == 3:
+        res = self.createCrawlRules(crawlRule[0], crawlRule[1], crawlRule[2])
+        if res[0] == True:
+          crawlRuleID = res[1]
+        else:
+          continue
+      else:
+        res = self.createCrawlRules(crawlRule[0], crawlRule[1], crawlRule[2], crawlRule[3])
+        if res[0] == True:
+          crawlRuleID = res[1]
+        else:
+          continue        
+        
+      self.addCrawlRuleToSubfolder(
+        subFolderId=subFolder_id,
+        crawlRulesID=crawlRuleID,
+        spiderID=spider_id
+      )
+            
+    for searchRule in subFolder[2]:
+      searchRuleID = -1
+      if len(searchRule) == 3:
+        res = self.createCrawlRules(searchRule[0], searchRule[1], searchRule[2])
+        if res[0] == True:
+          searchRuleID = res[1]
+        else:
+          continue
+      else:
+        res = self.createCrawlRules(searchRule[0], searchRule[1], searchRule[2], searchRule[3])
+        if res[0] == True:
+          searchRuleID = res[1]
+        else:
+          continue       
+        
+      self.addSearchRuleToSubfolder(
+        subFolderId=subFolder_id,
+        searchRuleId=searchRuleID,
+        spiderID=spider_id
+      )
+        
+  def createWebsiteSpider(
+    self, 
+    url, 
+    delay = 2.5, 
+    graphDeep = 2, 
+    maxThread = 1, 
+    crawlRules = [], 
+    fileTypes = [], 
+    keywords = [], 
+    subfolder = []
+  ):    
+    print(subfolder)
+    
     #Check if existed
     sql_check_command = '''
     SELECT * FROM public."Spider" WHERE "Url" = '%s';
@@ -1265,6 +1385,13 @@ class Singleton(metaclass=SingletonMeta):
       self.createSpiderFileType(
         spiderID=spider_ID,
         fileTypeId=fileTypeID
+      )
+
+    #Inser SubFolder
+    for folder in subfolder:
+      self.createSubFolder(
+        spider_id=spider_ID,
+        subFolder=folder
       )
 
     return (True, "Create Website Spider Complete")
@@ -1645,3 +1772,4 @@ class Singleton(metaclass=SingletonMeta):
       "Total_user": total_user,
       "Detail": return_value
     })
+    
