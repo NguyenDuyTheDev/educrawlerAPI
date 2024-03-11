@@ -1209,15 +1209,16 @@ class Singleton(metaclass=SingletonMeta):
     spiderID
   ):
     sql_command = '''
-    INSERT INTO public."SubfolderCrawlRules" ("SubFolderID", "SpiderID", "CrawlRulesId")
+    INSERT INTO public."SubfolderCrawlRules" ("SubfolderID", "SpiderID", "CrawlRuleID")
     VALUES (%s, %s, %s);
     ''' % (subFolderId, spiderID, crawlRulesID)
     
     try:
       self.cur.execute(sql_command)
       self.connection.commit()
-    except:
-      self.cur.execute("ROLLBACK;")    
+    except Exception as error:
+      print(error)
+      self.cur.execute("ROLLBACK;")
 
   def addSearchRuleToSubfolder(
     self, 
@@ -1226,16 +1227,16 @@ class Singleton(metaclass=SingletonMeta):
     spiderID
   ):
     sql_command = '''
-    INSERT INTO public."UrlSearchRules" ("SubFolderID", "SpiderID", "SearchRuleID")
+    INSERT INTO public."SubfolderSearchRules" ("SubfolderID", "SpiderID", "SearchRuleID")
     VALUES (%s, %s, %s);
     ''' % (subFolderId, spiderID, searchRuleId)
     
     try:
       self.cur.execute(sql_command)
       self.connection.commit()
-    except :
-      print("bug")
-      self.cur.execute("ROLLBACK;")    
+    except Exception as error:
+      print(error)
+      self.cur.execute("ROLLBACK;") 
   
   def createSubFolder(
     self,
@@ -1249,8 +1250,9 @@ class Singleton(metaclass=SingletonMeta):
     SELECT * 
     FROM public."Subfolder"
     WHERE "SpiderID" = %s
-    ORDER BY "SubfolderID" DESC;
+    ORDER BY "ID" DESC;
     ''' % (spider_id, subFolder[0], spider_id)
+    print(sql_command)
     
     subFolder_id = -1
     
@@ -1261,8 +1263,9 @@ class Singleton(metaclass=SingletonMeta):
       if not(result):
         return
       
-      subFolder_id = result[1]
-    except:
+      subFolder_id = result[0]
+    except Exception as error:
+      print(error)
       self.cur.execute("ROLLBACK;")
       
     for crawlRule in subFolder[1]:
@@ -1313,7 +1316,6 @@ class Singleton(metaclass=SingletonMeta):
     delay = 2.5, 
     graphDeep = 2, 
     maxThread = 1, 
-    crawlRules = [], 
     fileTypes = [], 
     keywords = [], 
     subfolder = []

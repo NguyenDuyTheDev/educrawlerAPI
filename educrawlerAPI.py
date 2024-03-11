@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from databaseAPI import Singleton
+from Controller.SpiderController import SpiderController
 
 import requests
 from urllib.parse import urlparse
@@ -15,6 +16,7 @@ import re
 
 
 databaseAPI = Singleton()
+spiderController = SpiderController()
 app = FastAPI()
 
 app.add_middleware(
@@ -697,7 +699,6 @@ def create_website_spider(spider_status: WebsiteSpider):
     delay=spider_status.delay,
     graphDeep=spider_status.graphdeep,
     maxThread=spider_status.maxThread,
-    crawlRules=afterReformatCrawlRules,
     fileTypes=spider_status.filetype,
     keywords=spider_status.keyword,
     subfolder=subFolders
@@ -727,6 +728,28 @@ def create_website_spider(spider_status: WebsiteSpider):
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
 def get_total_article_crawled_from_website_spider(spider_id: int, page: int = 0, articlePerPage: int = 10):
   res = databaseAPI.getSpiderTotalAriticle(spider_id, page=page, articlePerPage=articlePerPage)
+    
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+ 
+@app.get("/websiteSpider/{spider_id}/crawlRules", status_code=200, tags=["Website Spider"])
+def get_website_spider_crawl_rules(spider_id: int):
+  res = spiderController.getWebsiteSpiderCrawlRulesAsCssSelector(
+    spider_id=spider_id
+  )
+    
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  else:
+    return JSONResponse(status_code=404, content=res[1])
+  
+@app.get("/websiteSpider/{spider_id}/searchRules", status_code=200, tags=["Website Spider"])
+def get_website_spider_crawl_rules(spider_id: int):
+  res = spiderController.getWebsiteSpiderSearchRulesAssCssSelector(
+    spider_id=spider_id
+  )
     
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
