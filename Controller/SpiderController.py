@@ -15,7 +15,7 @@ class SpiderController(Singleton):
       self.cur.execute(sql_command)
       result = self.cur.fetchone()
       if not(result):
-        return
+        return (False, "No data to fetch")
       
       while result:        
         crawlRuleAsText = result[7]
