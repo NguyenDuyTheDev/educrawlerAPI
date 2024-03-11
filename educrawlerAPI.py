@@ -10,10 +10,10 @@ from Controller.SpiderController import SpiderController
 
 import requests
 from urllib.parse import urlparse
-import re
 
 #uvicorn educrawlerAPI:app --reload
 
+EDUCRAWLER_SERVICE_API_ENDPOINT = "https://educrawlercrawlerservice.onrender.com/schedule.json"
 
 databaseAPI = Singleton()
 spiderController = SpiderController()
@@ -241,7 +241,33 @@ def create_article(article: Article):
   if res[1] == "Article is already existed!":
     return JSONResponse(status_code=422, content={"message": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]}) 
-    
+
+@app.post("/article/{article_id}/reCrawl", status_code=201, tags=["Article"])
+def recrawl_the_article_with_demo_spider(article_id: int):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."}) 
+  
+  res = databaseAPI.getArticleByID(
+    id=article_id
+  ) 
+  if res[0] == False:
+    return JSONResponse(status_code=404, content={"message": "Article Not Found"}) 
+  
+  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  body = {
+    "project": "default",
+    "spider": "demoCrawlerURL",
+    "link": res[1]["Url"]
+  }  
+  res = requests.post(
+    api_endpoint,
+    body
+  )
+  
+  if res.status_code == 200:
+    return JSONResponse(status_code=200, content="This article is recrawling")
+  return JSONResponse(status_code=res.status_code, content="Can not crawl this article")
+      
 @app.put("/article/{article_id}", status_code=200, tags=["Article"])
 def update_article(article_id: int, article: Article):
   res = databaseAPI.editArticle(

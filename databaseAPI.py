@@ -76,27 +76,53 @@ class Singleton(metaclass=SingletonMeta):
     select * from public."Article" where "Id" = %d
     ''' % (id)
     
+    res_value = dict()
+    
     try:
       self.cur.execute(sql_command)
       result = self.cur.fetchone()
       if result:
-        return (True, {
+        res_value = {
           "Id": result[0],
           "Domain": result[1],
           "Url": result[2],
-          "FileName": result[3],
-          "Content": result[4],
+          "Title": result[9],
+          "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
           "LastUpdate": result[5].strftime("%m/%d/%Y, %H:%M:%S"),
+          "FileName": result[3],
+          "ArticleLength": len(result[4].split(' ')),
+          "Content": result[4],
           "CrawlStatus": result[6],
           "Note": result[7],
           "SpiderId": result[8],
-          "Title": result[9],
-          "FirstCrawlDate": result[10].strftime("%m/%d/%Y, %H:%M:%S"),
-        })
+          "Keyword": []
+        }
       else:
         return (False, "No Article Exist")
     except:
       return (False, "Error when fetching")
+    
+    sql_command = '''
+    SELECT *
+    FROM "ArticleKeyword", "Keyword"
+    WHERE "ArticleKeyword"."KeywordID" = "Keyword"."ID" AND "ArticleKeyword"."ArticleID" = %s;
+    ''' % (id)
+
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      article_keywords = []
+      while result:
+        article_keywords.append({
+          "ID": result[0],
+          "Name": result[4]
+        })
+        result = self.cur.fetchone()
+      res_value["Keyword"] = article_keywords
+    except:
+      return (False, "Error when fetching")
+    return (True, res_value)
+    
     
   def getArticleByUrl(self, url):
     sql_command = '''
@@ -125,10 +151,8 @@ class Singleton(metaclass=SingletonMeta):
   
   def getArticlesByPage(self, page, pageArticlesNumber):
     sql_command = '''
-    SELECT
-        count(*)
-    FROM
-        public."Article";
+    SELECT count(*)
+    FROM public."Article";
     '''
     total_article = 0
     try:
@@ -139,12 +163,9 @@ class Singleton(metaclass=SingletonMeta):
       return(False, "Error when checking")
     
     sql_command = '''
-    SELECT
-        "Id", "Url", "Title", "FirstCrawlDate", "LastUpdate", "CrawlStatus", "Note"
-    FROM
-        public."Article"
-    ORDER BY
-        "Id" 
+    SELECT "Id", "Url", "Title", "FirstCrawlDate", "LastUpdate", "CrawlStatus", "Note"
+    FROM public."Article"
+    ORDER BY "LastUpdate" DESC, "Id" DESC
     OFFSET %s ROWS 
     FETCH FIRST %s ROW ONLY; 
     ''' % (page * pageArticlesNumber, pageArticlesNumber)
