@@ -163,4 +163,166 @@ class SpiderController(Singleton):
     else:
       return res
     
-        
+  def getWebpageSpiderHistory(self, spider_id):
+    sql_command = '''
+    SELECT *
+    FROM "WebpageSpider", "CrawlHistory"
+    WHERE "WebpageSpider"."ID" = "CrawlHistory"."SpiderID" AND "WebpageSpider"."ID" = %s;
+    ''' % (spider_id)
+
+    data = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()      
+      while result:        
+        RunDate = ""
+        if result[4]:
+          RunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+        EndDate = ""
+        if result[5]:
+          EndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")  
+          
+        row = {
+          "RunDate": RunDate,
+          "EndDate": EndDate,
+          "RunTime": result[6],
+          "CrawlStatus": result[3],
+          "IsBlocked": result[7]
+        }
+        data.append(row)
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(data) == 0:
+      return (False, "No data to fetch")
+    return (True, data)
+  
+  def getWebpageSpiderArticle(
+    self, 
+    spider_id
+  ):
+    sql_command = '''
+    SELECT * 
+    FROM "Article", "WebpageSpider"
+    WHERE "Article"."SpiderId" = "WebpageSpider"."ID"
+    AND "Article"."SpiderId" = %s
+    ORDER BY "Article"."LastUpdate";
+    ''' % (spider_id)
+
+    data = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()      
+      while result:        
+        LastUpdate = ""
+        if result[5]:
+          LastUpdate = result[5].strftime("%m/%d/%Y, %H:%M:%S")
+        FirstUpdate = ""
+        if result[10]:
+          FirstUpdate = result[10].strftime("%m/%d/%Y, %H:%M:%S")  
+          
+        row = {
+          "ID": result[0],
+          "Domain": result[1],
+          "Title": result[9],
+          "Url": result[2],
+          "FirstCrawlDate": FirstUpdate,
+          "LastUpdate": LastUpdate,
+          "Content": result[4]
+        }
+        data.append(row)
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(data) == 0:
+      return (False, "No data to fetch")
+    return (True, data)
+  
+  def getWebsiteSpiderHistory(self, spider_id):
+    sql_command = '''
+    SELECT *
+    FROM "WebsiteSpider", "CrawlHistory", "WebsiteSpiderHistory"
+    WHERE "WebsiteSpider"."ID" = "CrawlHistory"."SpiderID" 
+    AND "WebsiteSpiderHistory"."ID" = "CrawlHistory"."ID"
+    AND "WebsiteSpider"."ID" = %s;
+    ''' % (spider_id)
+
+    data = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()      
+      while result:        
+        RunDate = ""
+        if result[7]:
+          RunDate = result[7].strftime("%m/%d/%Y, %H:%M:%S")
+        EndDate = ""
+        if result[8]:
+          EndDate = result[8].strftime("%m/%d/%Y, %H:%M:%S")  
+          
+        row = {
+          "RunDate": RunDate,
+          "EndDate": EndDate,
+          "RunTime": result[9],
+          "CrawlStatus": result[6],
+          "IsBlocked": result[10],
+          "TotalPage": result[13],
+          "CrawlSuccess": result[14],
+          "CrawlFail": result[15],
+          
+        }
+        data.append(row)
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(data) == 0:
+      return (False, "No data to fetch")
+    return (True, data)
+  
+  def getWebsiteSpiderArticle(
+    self, 
+    spider_id, 
+    page = 0, 
+    article_per_page = 10
+  ):
+    sql_command = '''
+    SELECT * 
+    FROM "Article", "WebsiteSpider"
+    WHERE "Article"."SpiderId" = "WebsiteSpider"."ID"
+    AND "Article"."SpiderId" = %s
+    ORDER BY "Article"."LastUpdate"
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY;
+    ''' % (spider_id, page * article_per_page, article_per_page)
+
+    data = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()      
+      while result:        
+        LastUpdate = ""
+        if result[5]:
+          LastUpdate = result[5].strftime("%m/%d/%Y, %H:%M:%S")
+        FirstUpdate = ""
+        if result[10]:
+          FirstUpdate = result[10].strftime("%m/%d/%Y, %H:%M:%S")  
+          
+        row = {
+          "ID": result[0],
+          "Domain": result[1],
+          "Title": result[9],
+          "Url": result[2],
+          "FirstCrawlDate": FirstUpdate,
+          "LastUpdate": LastUpdate,
+          "Content": result[4]
+        }
+        data.append(row)
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(data) == 0:
+      return (False, "No data to fetch")
+    return (True, data)

@@ -332,6 +332,28 @@ def get_webpage_spider_by_id(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
+@app.get("/webpageSpider/{spider_id}/history", status_code=201, tags=["Webpage Spider"])
+def get_webpage_spider_history(spider_id: int):
+  res = spiderController.getWebpageSpiderHistory(
+    spider_id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
+@app.get("/webpageSpider/{spider_id}/article", status_code=200, tags=["Webpage Spider"])
+def get_webpage_spider_article(spider_id: int):
+  res = spiderController.getWebpageSpiderArticle(
+    spider_id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
 @app.get("/webpageSpider/{spider_id}/crawl_rule", status_code=201, tags=["Webpage Spider"])
 def get_webpage_spider_crawl_rule_by_id(spider_id: int):
   res = databaseAPI.getWebpageSpiderCrawlRulebyID(
@@ -545,6 +567,17 @@ def get_website_spider_by_id(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
+@app.get("/websiteSpider/{spider_id}/history", status_code=200, tags=["Website Spider"])
+def get_website_spider_history(spider_id: int):
+  res = spiderController.getWebsiteSpiderHistory(
+    spider_id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+
 @app.post("/websiteSpider/{spider_id}/run", status_code=201, tags=["Website Spider"])
 def run_website_spider(spider_id: int):
   webpage_spider_information = databaseAPI.getWebsiteSpiderById(spider_id)
@@ -752,13 +785,17 @@ def create_website_spider(spider_status: WebsiteSpider):
     return JSONResponse(status_code=500, content={"message": res[1]}) 
   
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
-def get_total_article_crawled_from_website_spider(spider_id: int, page: int = 0, articlePerPage: int = 10):
-  res = databaseAPI.getSpiderTotalAriticle(spider_id, page=page, articlePerPage=articlePerPage)
-    
+def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: int = 10):
+  res = spiderController.getWebsiteSpiderArticle(
+    spider_id=spider_id,
+    page=page,
+    article_per_page=articlePerPage
+  )
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
-  else:
+  if res[1] == "No data to fetch":
     return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
  
 @app.get("/websiteSpider/{spider_id}/crawlRules", status_code=200, tags=["Website Spider"])
 def get_website_spider_crawl_rules(spider_id: int):
