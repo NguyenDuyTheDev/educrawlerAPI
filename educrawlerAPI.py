@@ -1,12 +1,14 @@
-from typing import Union, List
+from typing import Union, List, Annotated
 from enum import Enum
+from datetime import datetime, time, timedelta, date
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from databaseAPI import Singleton
 from Controller.SpiderController import SpiderController
+from Controller.ArticleController import ArticleController
 
 import requests
 from urllib.parse import urlparse
@@ -17,6 +19,7 @@ EDUCRAWLER_SERVICE_API_ENDPOINT = "https://educrawlercrawlerservice.onrender.com
 
 databaseAPI = Singleton()
 spiderController = SpiderController()
+articleController = ArticleController()
 app = FastAPI()
 
 app.add_middleware(
@@ -212,6 +215,60 @@ def get_articles(page: int = 0, articlePerPage: int = 10):
   if res[1] == "No data to fetch":
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
+  
+class OrderBy(str, Enum):
+    LastUpdate = "LastUpdate"
+    FirstCrawlDate = "FirstCrawlDate"
+
+class FilterOrder(str, Enum):
+    ASC = "ASC"
+    DESC = "DESC"
+  
+@app.post("/articles/sort", status_code=200, tags=["Article"])
+def sort_articles(
+  page: int = 0, 
+  articlePerPage: int = 10,
+  orderBy: OrderBy = "LastUpdate",
+  filterOrder: FilterOrder = "DESC",
+  startTime: Annotated[date | None, Body()] = None,
+  endTime: Annotated[date | None, Body()] = None
+  ):
+  startTimeReformatted = ''
+  endTimeReformatted = ''
+
+  if isinstance(startTime, date) and isinstance(endTime, date):
+    startTime += timedelta(days=1)
+    endTime += timedelta(days=1)
+    startTimeReformatted = startTime.strftime("%Y-%m-%d")
+    endTimeReformatted = endTime.strftime("%Y-%m-%d")
+
+  if isinstance(startTime, date):
+    startTime += timedelta(days=1)
+    startTimeReformatted = startTime.strftime("%Y-%m-%d")
+    today = date.today() + timedelta(days=1)
+    endTimeReformatted = today.strftime("%Y-%m-%d")
+
+  if isinstance(endTime, date):
+    day = date.today() - timedelta(weeks=100)
+    startTimeReformatted = day.strftime("%Y-%m-%d")
+    endTime += timedelta(days=1)
+    endTimeReformatted = endTime.strftime("%Y-%m-%d")
+  
+  res = articleController.sortArticle(
+    page=page,
+    article_per_page=articlePerPage,
+    order_by=orderBy,
+    filter_order=filterOrder,
+    start_time=startTimeReformatted,
+    end_time=endTimeReformatted
+  )
+    
+  if res[0] == True:
+    return JSONResponse(status_code=200, content=res[1])
+  
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])  
   
 @app.get("/articles/{article_id}", status_code=200, tags=["Article"])
 def get_article_by_id(article_id: int):
