@@ -82,3 +82,16 @@ class ArticleController(Singleton):
       "total_article": total_article,
       "detail": article
     })
+    
+  def getTotalRuntime(self):
+    sql_command = '''
+    SELECT SUM("RunTime")
+    FROM "Spider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  

@@ -326,3 +326,89 @@ class SpiderController(Singleton):
     if len(data) == 0:
       return (False, "No data to fetch")
     return (True, data)
+  
+  def getTotalRuntime(self):
+    sql_command = '''
+    SELECT SUM("RunTime")
+    FROM "Spider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getTotalCrawlSuccess(self):
+    sql_command = '''
+    SELECT SUM("CrawlSuccess")
+    FROM "WebsiteSpider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getTotalCrawlFail(self):
+    sql_command = '''
+    SELECT SUM("CrawlFail")
+    FROM "WebsiteSpider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getAllSpiderRunningStatus(self):
+    sql_command = '''
+    SELECT "Status", COUNT(*)
+    FROM "Spider"
+    GROUP BY "Status";
+    '''
+    return_value = {
+      "Available": 0,
+      "Running": 0,
+      "Suspend": 0,
+      "Closing": 0     
+    }
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      while result:
+        return_value[result[0]] = result[1]
+        result = self.cur.fetchone()  
+    except:
+      return (False, "Error when fetching data")  
+    return (True, return_value)
+  
+  def getTop10SpiderWithMostArticle(self):
+    sql_command = '''
+    SELECT "Article"."SpiderId", "Spider"."Url", COUNT("Article"."Id")
+    FROM "Article", "Spider"
+    WHERE "Article"."SpiderId" = "Spider"."ID" 
+    GROUP BY "Article"."SpiderId", "Spider"."Url"
+    ORDER BY COUNT("Article"."Id") DESC
+    FETCH FIRST 10 ROW ONLY;
+    '''
+    return_value = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      while result:
+        return_value.append({
+          "SpiderID": result[0],
+          "Url": result[1],
+          "Domain": result[1].split("//")[1].split("/")[0],
+          "Total": result[2],
+        })
+        result = self.cur.fetchone()  
+    except:
+      return (False, "Error when fetching data")  
+    return (True, return_value)

@@ -959,3 +959,45 @@ def crawl_single_page(url: str):
     return JSONResponse(status_code=200, content=body)
   else:
     return JSONResponse(status_code=res.status_code, content="Can not crawl")
+  
+@app.get("/dashboard/totalRunTime", status_code=200, tags=["Dashboard"])
+def get_total_runtime():
+  totalRunTimeRes = spiderController.getTotalRuntime()
+  if totalRunTimeRes[0] == True:
+    return JSONResponse(status_code=200, content={"TotalRunTime": totalRunTimeRes[1]})
+  return JSONResponse(status_code=500, content={"message": totalRunTimeRes[1]})
+
+@app.get("/dashboard/totalArticle", status_code=200, tags=["Dashboard"])
+def get_total_article():
+  totalArticleRes = articleController.getTotalArticle()
+  if totalArticleRes[0] == True:
+    return JSONResponse(status_code=200, content={"TotalArticle": totalArticleRes[1]})
+  return JSONResponse(status_code=500, content={"message": totalArticleRes[1]})
+
+@app.get("/dashboard/totalGoodCrawl", status_code=200, tags=["Dashboard"])
+def get_total_good_crawl():
+  totalGoodRes = spiderController.getTotalCrawlSuccess()
+  if totalGoodRes[0] == True:
+    return JSONResponse(status_code=200, content={"TotalGoodCrawl": totalGoodRes[1]})
+  return JSONResponse(status_code=500, content={"message": totalGoodRes[1]})
+
+@app.get("/dashboard/totalBadCrawl", status_code=200, tags=["Dashboard"])
+def get_total_runtime():
+  totalFailRes = spiderController.getTotalCrawlFail()
+  if totalFailRes[0] == True:
+    return JSONResponse(status_code=200, content={"TotalBadCrawl": totalFailRes[1]})
+  return JSONResponse(status_code=500, content={"message": totalFailRes[1]})
+
+@app.get("/dashboard/allSpiderRunningStatus", status_code=200, tags=["Dashboard"])
+def get_all_spider_running_status():
+  res = spiderController.getAllSpiderRunningStatus()
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})
+
+@app.get("/dashboard/top10spider", status_code=200, tags=["Dashboard"])
+def get_top_10_spider_with_most_article():
+  res = spiderController.getTop10SpiderWithMostArticle()
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})
