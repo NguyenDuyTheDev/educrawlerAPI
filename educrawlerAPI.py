@@ -10,6 +10,9 @@ from databaseAPI import Singleton
 from Controller.SpiderController import SpiderController
 from Controller.ArticleController import ArticleController
 
+# Controller
+from Controller.KeywordController import KeywordController
+
 import requests
 from urllib.parse import urlparse
 
@@ -20,6 +23,8 @@ EDUCRAWLER_SERVICE_API_ENDPOINT = "https://educrawlercrawlerservice.onrender.com
 databaseAPI = Singleton()
 spiderController = SpiderController()
 articleController = ArticleController()
+keywordController = KeywordController()
+
 app = FastAPI()
 
 app.add_middleware(
@@ -68,69 +73,52 @@ def get_introduction():
 # Keyword
 @app.get("/keywords", status_code=200, tags=["Keyword"])
 def get_keywords(page: int = 0, keywordPerPage: int = 10):
-  total_keywords = databaseAPI.getTotalKeyword()
-  if total_keywords[0] == False:
-    return JSONResponse(status_code=500, content={"message": res[1]})      
-  
-  res = databaseAPI.getKeywordByPage(
-    page=page, 
-    pageKeywordsNumber=keywordPerPage
-    )
-  
+  res = keywordController.getKeyword(
+    page=page,
+    keywordPerPage=keywordPerPage
+  )
   if res[0] == True:
-    return JSONResponse(
-      status_code=200, 
-      content={
-        "total_keywords": total_keywords[1],
-        "keywords": res[1]    
-      }
-    )
-  else:
-    if res[1] == "No data to fetch":
-      return JSONResponse(status_code=404, content={"message": res[1]})
-    if res[1] == "Error when fetching data":
-      return JSONResponse(status_code=500, content={"message": res[1]})  
-    return JSONResponse(status_code=500, content={"message": res[1]})  
+    return JSONResponse(status_code=200, content=res[1]) 
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1]) 
+  return JSONResponse(status_code=500, content=res[1]) 
       
 @app.post("/keywords", status_code=201, tags=["Keyword"])
 def create_keyword(name: str):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
-  res = databaseAPI.addKeyword(name)
-  
+  res = keywordController.addKeyword(name)
   if res[0] == True:
     return JSONResponse(status_code=201, content={"detail": res[1]})
-  else:
-    if res[1] == "Keyword is already existed!":
-      return JSONResponse(status_code=422, content={"message": res[1]})
-    if res[1] == "Error when creating!":
-      return JSONResponse(status_code=500, content={"message": res[1]})  
-    return JSONResponse(status_code=500, content={"message": res[1]})  
+  if res[1] == "Keyword has already existed":
+    return JSONResponse(status_code=422, content={"message": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
   
 @app.put("/keywords/{keyword_id}", status_code=200, tags=["Keyword"])
 def update_keyword(keyword_id: int, name: str):
-  res = databaseAPI.editKeywordByID(keyword_id, name)
-  
+  res = keywordController.editKeyword(
+    id=keyword_id, 
+    keyword=name
+  )
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
-  else:
-    if res[1] == "Keyword doesn't exist!":
-      return JSONResponse(status_code=404, content={"message": res[1]})
-    if res[1] == "Keyword is already existed!":
-      return JSONResponse(status_code=422, content={"message": res[1]})
-    return JSONResponse(status_code=500, content={"message": res[1]})  
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content={"message": "Keyword Id doesn't exist"})
+  if res[1] == "Keyword has already existed":
+    return JSONResponse(status_code=422, content={"message": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
 
 @app.delete("/keywords/{keyword_id}", status_code=200, tags=["Keyword"])
 def delete_keyword(keyword_id: int):
-  res = databaseAPI.deleteKeywordByID(keyword_id)
-  
+  res = keywordController.deleteKeyword(
+    id=keyword_id
+  )
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
-  else:
-    if res[1] == "Keyword doesn't exist!":
-      return JSONResponse(status_code=404, content={"message": res[1]})
-    return JSONResponse(status_code=500, content={"message": res[1]})  
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content={"message": "Keyword doesn't exist"})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
     
 # File Type
 @app.get("/filetypes", status_code=200, tags=["Supported File Type"])
@@ -204,10 +192,12 @@ class Article(BaseModel):
 
 @app.get("/articles", status_code=200, tags=["Article"])
 def get_articles(page: int = 0, articlePerPage: int = 10):
-  res = databaseAPI.getArticlesByPage(
-    page=page, 
-    pageArticlesNumber=articlePerPage
-    )
+  res = articleController.sortArticle(
+    page=page,
+    article_per_page=articlePerPage,
+    order_by="LastUpdate",
+    filter_order="DESC",
+  )
     
   if res[0] == True:
     return JSONResponse(status_code=200, content=res[1])
@@ -272,7 +262,7 @@ def sort_articles(
   
 @app.get("/articles/{article_id}", status_code=200, tags=["Article"])
 def get_article_by_id(article_id: int):
-  res = databaseAPI.getArticleByID(article_id)
+  res = articleController.getArticle(article_id=article_id)
   
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
@@ -286,11 +276,11 @@ def create_article(article: Article):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
-  res = databaseAPI.createArticle(
+  res = articleController.createArticle(
     title=article.title,
     domain=article.domain,
     url=article.url,
-    content=article.content
+    content=article.content  
   )
   
   if res[0] == True:
@@ -327,12 +317,12 @@ def recrawl_the_article_with_demo_spider(article_id: int):
       
 @app.put("/article/{article_id}", status_code=200, tags=["Article"])
 def update_article(article_id: int, article: Article):
-  res = databaseAPI.editArticle(
+  res = articleController.editArticle(
     article_id=article_id,
     title=article.title,
     domain=article.domain,
     url=article.url,
-    content=article.content
+    content=article.content    
   )
   
   if res[0] == True:
@@ -343,11 +333,11 @@ def update_article(article_id: int, article: Article):
 
 @app.delete("/article/{article_id}", status_code=200, tags=["Article"])
 def delete_article(article_id: int):
-  res = databaseAPI.deleteArticleById(article_id)
+  res = articleController.deleteArticle(article_id=article_id)
   
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
-  if res[1] == "Article isn't existed!":
+  if res[1] == "No Article Exist":
     return JSONResponse(status_code=404, content={"message": res[1]})
   return JSONResponse(status_code=500, content={"message": "Error when deleting article!"}) 
   
@@ -877,14 +867,35 @@ def get_website_spider_crawl_rules(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   
 # Spider 
-@app.delete("/spider", status_code=200, tags=["Spider"])
+@app.delete("/spiders", status_code=200, tags=["Spider"])
 def delete_spider(spider_id: int):
   res = databaseAPI.deleteSpider(spider_id)
   
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
-  else:
-    return JSONResponse(status_code=500, content={"message": res[1]})  
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+class UserRole(str, Enum):
+    Available = "Available"
+    Blocked = "Blocked"
+  
+@app.put("/spiders", status_code=200, tags=["Spider"])
+def edit_base_spider(
+  spider_id: int,
+  url: str = "",
+  status: UserRole = "Available",
+  is_academic: bool = False
+):
+  res = spiderController.editSpider(
+    spider_id=spider_id,
+    url=url,
+    status=status.split(".")[-1],
+    is_academic=is_academic
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})    
   
 # User
 
@@ -968,8 +979,8 @@ def get_total_runtime():
   return JSONResponse(status_code=500, content={"message": totalRunTimeRes[1]})
 
 @app.get("/dashboard/totalArticle", status_code=200, tags=["Dashboard"])
-def get_total_article():
-  totalArticleRes = articleController.getTotalArticle()
+def get_total_article():  
+  totalArticleRes = articleController.countArticle()
   if totalArticleRes[0] == True:
     return JSONResponse(status_code=200, content={"TotalArticle": totalArticleRes[1]})
   return JSONResponse(status_code=500, content={"message": totalArticleRes[1]})

@@ -1,6 +1,13 @@
-from databaseAPI import Singleton
+from ControllerDB.ArticleDB import ArticleDB
 
-class ArticleController(Singleton):
+articleDB = ArticleDB()
+
+class ArticleController():
+  def countArticle(
+    self
+  ):
+    return articleDB.countArticle()
+  
   def sortArticle(
     self, 
     page = 0, 
@@ -10,78 +17,60 @@ class ArticleController(Singleton):
     start_time = '',
     end_time = ''
   ):
-    sql_count_command = '''
-    SELECT count(*)
-    FROM public."Article"
-    '''
+    return articleDB.sortArticle(
+      page=page, 
+      article_per_page=article_per_page,
+      order_by=order_by,
+      filter_order=filter_order,
+      start_time=start_time,
+      end_time=end_time
+    )
     
-    sql_command = '''
-    SELECT *
-    FROM public."Article"
-    '''
+  def getArticle(
+    self, 
+    article_id = 0
+  ):
+    return articleDB.getArticleByID(
+      article_id=article_id
+    )
     
-    if len(start_time) > 0:
-      print(start_time)
-      sql_sub_command = '''
-      WHERE "Article"."LastUpdate" BETWEEN TIMESTAMP '%s' AND TIMESTAMP '%s'
-      ''' % (start_time, end_time)
-      sql_command = sql_command + sql_sub_command
-      sql_count_command = sql_count_command + sql_sub_command
+  def createArticle(
+    self,
+    title, 
+    domain, 
+    url, 
+    content
+  ):
+    return articleDB.createArticle(
+      title=title,
+      domain=domain,
+      url=url,
+      content=content
+    )
     
-    sql_sub_command = '''
-    ORDER BY "Article"."%s" %s
-    OFFSET %s ROWS 
-    FETCH FIRST %s ROW ONLY;     
-    ''' % (order_by.split('.')[-1], filter_order.split('.')[-1], page * article_per_page, article_per_page)
-    sql_command = sql_command + sql_sub_command
-      
-    print(sql_command)
-      
-    article = []
-  
-    try:
-      self.cur.execute(sql_command)
-      result = self.cur.fetchone()
-      while (result):
-        LastUpdate = ''
-        if result[5]:
-          LastUpdate = result[5].strftime("%m/%d/%Y, %H:%M:%S")
-        FirstCrawlDate = ''
-        if result[10]:
-          FirstCrawlDate = result[10].strftime("%m/%d/%Y, %H:%M:%S")
-        
-        article.append({
-          "Id": result[0],
-          "Url": result[2],
-          "Title": result[2],
-          "FirstCrawlDate": FirstCrawlDate,
-          "LastUpdate": LastUpdate,
-          "CrawlStatus": result[6],
-          "Note": result[7]
-        })
-        result = self.cur.fetchone()
-    except Exception as err :
-      print(err)
-      return(False, "Error when fetching")
+  def editArticle(
+    self, 
+    article_id, 
+    title, 
+    domain, 
+    url, 
+    content
+  ):
+    return articleDB.editArticle(
+      title=title,
+      article_id=article_id,
+      domain=domain,
+      url=url,
+      content=content
+    )
     
-    if len(article) == 0:
-      return(False, "No data to fetch")
-
-    total_article = 0
-
-    try:
-      self.cur.execute(sql_count_command)
-      result = self.cur.fetchone()
-      if (result):
-        total_article = result[0]
-    except Exception as err :
-      print(err)
-      return(False, "Error when fetching")
-    
-    return (True, {
-      "total_article": total_article,
-      "detail": article
-    })
+  def deleteArticle(
+    self,
+    article_id
+  ):
+    return articleDB.deleteArticle(
+      article_id=article_id
+    )
     
   def getTotalRuntime(self):
     sql_command = '''

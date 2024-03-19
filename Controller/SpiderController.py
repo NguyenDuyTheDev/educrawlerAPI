@@ -1,6 +1,9 @@
 from databaseAPI import Singleton
 
-class SpiderController(Singleton):
+from ControllerDB.SpiderDB import SpiderDB, Spider
+spiderDB = SpiderDB()
+
+class SpiderController(Singleton):  
   def getWebsiteSpiderCrawlRules(self, spider_id):
     sql_command = '''
     SELECT *
@@ -412,3 +415,17 @@ class SpiderController(Singleton):
     except:
       return (False, "Error when fetching data")  
     return (True, return_value)
+  
+  def editSpider(
+    self,
+    spider_id,
+    url = "",
+    status = "Available",
+    is_academic = False
+  ):
+    return spiderDB.editSpider(
+      spider_id=spider_id,
+      url=url,
+      status=status,
+      is_academic=is_academic
+    )
