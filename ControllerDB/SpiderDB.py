@@ -162,3 +162,16 @@ class SpiderDB(Singleton):
       self.cur.execute("ROLLBACK;")
       return (False, "Error when edit spider!")
     return (True, "Edit spider complete")
+  
+  def updateKeywords(
+    self, 
+    spider_id,
+    keyword_ids = []
+  ):
+    keywordDB.removeAllKeywordFromSpider(spider_id=spider_id)
+    
+    for keyword in keyword_ids:
+      keywordDB.addKeywordToSpider(
+        keyword_id=keyword,
+        spider_id=spider_id
+      )

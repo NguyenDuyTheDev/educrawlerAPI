@@ -884,13 +884,15 @@ def edit_base_spider(
   spider_id: int,
   url: str = "",
   status: UserRole = "Available",
-  is_academic: bool = False
+  is_academic: bool = False,
+  keyword_ids: List[int] = []
 ):
   res = spiderController.editSpider(
     spider_id=spider_id,
     url=url,
     status=status.split(".")[-1],
-    is_academic=is_academic
+    is_academic=is_academic,
+    keyword_ids=keyword_ids
   )
   
   if res[0] == True:

@@ -182,7 +182,20 @@ class KeywordDB(Singleton):
       return (False, "Error when inserting!")
     
     return (True, "Insert keyword %s to spider %s successfully" % (keyword_id, spider_id))      
-
+  
+  def removeAllKeywordFromSpider(self, spider_id):
+    sql_command = '''
+    DELETE FROM public."SpiderKeyword"
+    WHERE "SpiderID" = %s;
+    ''' % (spider_id)
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when deleting!")
+    
+    return (True, "Remove all keyword from spider %s successfully" % (spider_id))   
       
   def removeKeywordFromSpider(self, keyword_id, spider_id):
     sql_command = '''

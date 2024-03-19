@@ -1,0 +1,8 @@
+__pycache__/databaseAPI.cpython-311.pyc
+__pycache__/educrawlerAPI.cpython-311.pyc
+Controller/__pycache__/ArticleController.cpython-311.pyc
+Controller/__pycache__/KeywordController.cpython-311.pyc
+Controller/__pycache__/SpiderController.cpython-311.pyc
+ControllerDB/__pycache__/ArticleDB.cpython-311.pyc
+ControllerDB/__pycache__/KeywordDB.cpython-311.pyc
+ControllerDB/__pycache__/SpiderDB.cpython-311.pyc

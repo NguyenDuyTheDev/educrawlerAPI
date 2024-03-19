@@ -421,8 +421,14 @@ class SpiderController(Singleton):
     spider_id,
     url = "",
     status = "Available",
-    is_academic = False
+    is_academic = False,
+    keyword_ids = []
   ):
+    spiderDB.updateKeywords(
+      spider_id=spider_id, 
+      keyword_ids=keyword_ids
+    )
+    
     return spiderDB.editSpider(
       spider_id=spider_id,
       url=url,
