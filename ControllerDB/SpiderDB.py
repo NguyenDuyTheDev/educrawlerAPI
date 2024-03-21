@@ -26,8 +26,17 @@ class CrawlRule:
     self.className = className
     self.idName = idName
     self.childId = childId
-    
+
   def get(self):
+    return {
+      "id": self.id,
+      "tag": self.tag,
+      "className": self.className,
+      "idName": self.idName,
+      "childId": self.childId
+    }
+    
+  def getCSSSelector(self):
     result = self.tag
     if self.className != "":
       result = result + "." + self.className
@@ -129,6 +138,9 @@ class Spider:
     }
  
 class SpiderDB(Singleton):
+  def __init__(self) -> None:
+    super().__init__()
+  
   def countSpider(self):
     sql_command = '''
     SELECT COUNT(*) FROM public."Spider";
@@ -139,6 +151,40 @@ class SpiderDB(Singleton):
       return (True, result[0])
     except:
       return (False, "Error when checking!")
+    
+  def getSpider(
+    self, 
+    spider_id
+  ):
+    sql_command = '''
+    SELECT * FROM public."Spider" WHERE "ID" = %s;
+    ''' % (spider_id)
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Spider is not existed!")    
+    except:
+      return (False, "Error when checking!")
+    return (True, result[0])
+    
+  def getSpiderByUrl(
+    self, 
+    url
+  ):
+    sql_command = '''
+    SELECT * FROM public."Spider" WHERE "Url" = '%s';
+    ''' % (url)
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "Spider is not existed!")    
+    except:
+      return (False, "Error when checking!")
+    return (True, result[0])
     
   def editSpider(
     self, 
@@ -175,3 +221,150 @@ class SpiderDB(Singleton):
         keyword_id=keyword,
         spider_id=spider_id
       )
+      
+  # CrawlRule
+  def getCrawlRule(self, crawl_rule_id):
+    sql_command = '''
+    SELECT * FROM public."CrawlRules" WHERE "ID" = %s;
+    ''' % (crawl_rule_id)
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      if not(result):
+        return (False, "CrawlRule is not existed!")      
+    except:
+      return (False, "Error when checking!")
+    return (True, result[0])
+  
+  def createCrawlRule(self, tag, class_name, id_name, child = None):
+    if child == None or len(child) == 0:
+      sql_command = '''
+      INSERT INTO public."CrawlRules" ("Tag", "HTMLClassName", "HTMLIDName") Values ('%s', '%s', '%s');
+      SELECT * 
+      FROM public."CrawlRules" 
+      WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s'
+      ORDER BY "ID" DESC;
+      ''' % (tag, class_name, id_name, tag, class_name, id_name)
+
+      try:
+        self.cur.execute(sql_command)
+        self.connection.commit()
+        result = self.cur.fetchone()
+        if not(result):
+          return (False, "Error when creating crawlRule")
+      except:
+        self.cur.execute("ROLLBACK;")
+        return (False, "Error when creating crawlRule")
+      return (True, result[0])
+        
+    else:
+      childID = ()
+      if len(child) == 3:
+        childID = self.createCrawlRule(child[0], child[1], child[2])
+      else:
+        childID = self.createCrawlRule(child[0], child[1], child[2], child[3])
+      if childID[0] == False:
+        return (False, "Error when creating crawlRule")
+      
+      sql_command = '''
+      INSERT INTO public."CrawlRules" ("Tag", "HTMLClassName", "HTMLIDName", "ChildCrawlRuleID") Values ('%s', '%s', '%s', %s);
+      SELECT * FROM public."CrawlRules" WHERE "Tag" = '%s' AND "HTMLClassName" = '%s' AND "HTMLIDName" = '%s' AND "ChildCrawlRuleID" = %s;
+      ''' % (tag, class_name, id_name, childID[1], tag, class_name, id_name, childID[1])
+
+      try:
+        self.cur.execute(sql_command)
+        self.connection.commit()
+        result = self.cur.fetchone()
+        if not(result):
+          return (False, "Error when creating crawlRule")
+      except:
+        self.cur.execute("ROLLBACK;")
+        return (False, "Error when creating crawlRule")
+      return (True, result[0])    
+    
+  def getTotalRuntime(self):
+    sql_command = '''
+    SELECT SUM("RunTime")
+    FROM "Spider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getTotalCrawlSuccess(self):
+    sql_command = '''
+    SELECT SUM("CrawlSuccess")
+    FROM "WebsiteSpider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getTotalCrawlFail(self):
+    sql_command = '''
+    SELECT SUM("CrawlFail")
+    FROM "WebsiteSpider";
+    '''
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      if result:
+        return (True, result[0])
+    except:
+      return (False, "Error when fetching data")  
+    
+  def getAllSpiderRunningStatus(self):
+    sql_command = '''
+    SELECT "Status", COUNT(*)
+    FROM "Spider"
+    GROUP BY "Status";
+    '''
+    return_value = {
+      "Available": 0,
+      "Running": 0,
+      "Suspend": 0,
+      "Closing": 0     
+    }
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      while result:
+        return_value[result[0]] = result[1]
+        result = self.cur.fetchone()  
+    except:
+      return (False, "Error when fetching data")  
+    return (True, return_value)
+  
+  def getTop10SpiderWithMostArticle(self):
+    sql_command = '''
+    SELECT "Article"."SpiderId", "Spider"."Url", COUNT("Article"."Id")
+    FROM "Article", "Spider"
+    WHERE "Article"."SpiderId" = "Spider"."ID" 
+    GROUP BY "Article"."SpiderId", "Spider"."Url"
+    ORDER BY COUNT("Article"."Id") DESC
+    FETCH FIRST 10 ROW ONLY;
+    '''
+    return_value = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()     
+      while result:
+        return_value.append({
+          "SpiderID": result[0],
+          "Url": result[1],
+          "Domain": result[1].split("//")[1].split("/")[0],
+          "Total": result[2],
+        })
+        result = self.cur.fetchone()  
+    except:
+      return (False, "Error when fetching data")  
+    return (True, return_value)

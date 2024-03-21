@@ -6,3 +6,9 @@ Controller/__pycache__/SpiderController.cpython-311.pyc
 ControllerDB/__pycache__/ArticleDB.cpython-311.pyc
 ControllerDB/__pycache__/KeywordDB.cpython-311.pyc
 ControllerDB/__pycache__/SpiderDB.cpython-311.pyc
+ControllerDB/__pycache__/UserDB.cpython-311.pyc
+ControllerDB/__pycache__/WebpageSpiderDB.cpython-311.pyc
+ControllerDB/__pycache__/WebsiteSpiderDB.cpython-311.pyc
+Controller/__pycache__/WebsiteSpiderController.cpython-311.pyc
+Controller/__pycache__/WebpageSpiderController.cpython-311.pyc
+Controller/__pycache__/UserController.cpython-311.pyc

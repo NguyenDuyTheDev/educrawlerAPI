@@ -9,6 +9,9 @@ from fastapi.responses import JSONResponse
 from databaseAPI import Singleton
 from Controller.SpiderController import SpiderController
 from Controller.ArticleController import ArticleController
+from Controller.WebpageSpiderController import WebpageSpiderController
+from Controller.WebsiteSpiderController import WebsiteSpiderController
+from Controller.UserController import UserController
 
 # Controller
 from Controller.KeywordController import KeywordController
@@ -24,6 +27,9 @@ databaseAPI = Singleton()
 spiderController = SpiderController()
 articleController = ArticleController()
 keywordController = KeywordController()
+webpageSpiderController = WebpageSpiderController()
+websiteSpiderController = WebsiteSpiderController()
+userController = UserController()
 
 app = FastAPI()
 
@@ -206,6 +212,21 @@ def get_articles(page: int = 0, articlePerPage: int = 10):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
   
+@app.get("/articles/search", status_code=200, tags=["Article"])
+def search_articles(content: str ,page: int = 0, articlePerPage: int = 10):
+  res = articleController.searchArticle(
+    content=content,
+    page=page,
+    article_per_page=articlePerPage
+  )
+    
+  if res[0] == True:
+    return JSONResponse(status_code=200, content=res[1])
+  
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])
+  
 class OrderBy(str, Enum):
     LastUpdate = "LastUpdate"
     FirstCrawlDate = "FirstCrawlDate"
@@ -227,22 +248,28 @@ def sort_articles(
   endTimeReformatted = ''
 
   if isinstance(startTime, date) and isinstance(endTime, date):
-    startTime += timedelta(days=1)
-    endTime += timedelta(days=1)
+    #startTime += timedelta(days=1)
+    #endTime += timedelta(days=1)
     startTimeReformatted = startTime.strftime("%Y-%m-%d")
     endTimeReformatted = endTime.strftime("%Y-%m-%d")
 
-  if isinstance(startTime, date):
-    startTime += timedelta(days=1)
+  elif isinstance(startTime, date):
+    #startTime += timedelta(days=1)
     startTimeReformatted = startTime.strftime("%Y-%m-%d")
     today = date.today() + timedelta(days=1)
     endTimeReformatted = today.strftime("%Y-%m-%d")
 
-  if isinstance(endTime, date):
+  elif isinstance(endTime, date):
     day = date.today() - timedelta(weeks=100)
     startTimeReformatted = day.strftime("%Y-%m-%d")
-    endTime += timedelta(days=1)
+    #endTime += timedelta(days=1)
     endTimeReformatted = endTime.strftime("%Y-%m-%d")
+    
+  else:
+    day = date.today() - timedelta(weeks=100)
+    startTimeReformatted = day.strftime("%Y-%m-%d")    
+    today = date.today() + timedelta(days=1)
+    endTimeReformatted = today.strftime("%Y-%m-%d")
   
   res = articleController.sortArticle(
     page=page,
@@ -293,18 +320,16 @@ def create_article(article: Article):
 def recrawl_the_article_with_demo_spider(article_id: int):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."}) 
-  
-  res = databaseAPI.getArticleByID(
-    id=article_id
-  ) 
+    
+  res = articleController.getArticle(article_id=article_id)
   if res[0] == False:
     return JSONResponse(status_code=404, content={"message": "Article Not Found"}) 
   
-  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  api_endpoint = EDUCRAWLER_SERVICE_API_ENDPOINT
   body = {
     "project": "default",
     "spider": "demoCrawlerURL",
-    "link": res[1]["Url"]
+    "link": res[1]["url"]
   }  
   res = requests.post(
     api_endpoint,
@@ -356,9 +381,9 @@ class WebpageSpider(BaseModel):
     filetype: List[int]
     crawlRules: List[CrawlRule]
 
-@app.get("/webpageSpider", status_code=201, tags=["Webpage Spider"])
+@app.get("/webpageSpider", status_code=200, tags=["Webpage Spider"])
 def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
-  res = databaseAPI.getWebpageSpider(
+  res = webpageSpiderController.getSpiders(
     page=page,
     spiderPerPage=spiderPerPage
   )
@@ -368,9 +393,9 @@ def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])
 
-@app.get("/webpageSpider/{spider_id}", status_code=201, tags=["Webpage Spider"])
+@app.get("/webpageSpider/{spider_id}", status_code=200, tags=["Webpage Spider"])
 def get_webpage_spider_by_id(spider_id: int):
-  res = databaseAPI.getWebpageSpiderById(
+  res = webpageSpiderController.getSpiderById(
     id=spider_id
   )
   if res[0]:
@@ -381,9 +406,10 @@ def get_webpage_spider_by_id(spider_id: int):
 
 @app.get("/webpageSpider/{spider_id}/history", status_code=201, tags=["Webpage Spider"])
 def get_webpage_spider_history(spider_id: int):
-  res = spiderController.getWebpageSpiderHistory(
+  res = webpageSpiderController.getHistory(
     spider_id=spider_id
   )
+  
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
   if res[1] == "No data to fetch":
@@ -392,7 +418,7 @@ def get_webpage_spider_history(spider_id: int):
 
 @app.get("/webpageSpider/{spider_id}/article", status_code=200, tags=["Webpage Spider"])
 def get_webpage_spider_article(spider_id: int):
-  res = spiderController.getWebpageSpiderArticle(
+  res = webpageSpiderController.getArticles(
     spider_id=spider_id
   )
   if res[0]:
@@ -468,13 +494,13 @@ def create_webpage_spider(spider_status: WebpageSpider):
       rules[index - 1].append(rules[index])
       
     afterReformatCrawlRules.append(rules[0])
-    
-  res = databaseAPI.createWebpageSpider(
+  
+  res = webpageSpiderController.createWebpageSpider(
     url=spider_status.url,
     crawlRules=afterReformatCrawlRules,
     fileTypes=spider_status.filetype,
-    keywords=spider_status.keyword
-  )
+    keywords=spider_status.keyword    
+  )  
 
   if res[0] == True:
     return JSONResponse(
@@ -491,10 +517,82 @@ def create_webpage_spider(spider_status: WebpageSpider):
   if res[1] == "Spider is already existed!":
     return JSONResponse(status_code=422, content={"message": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]}) 
+
+@app.put("/webpageSpider/{spider_id}/crawlRules", status_code=200, tags=["Webpage Spider"])
+def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule] = []): 
+  crawlRule = []
+  
+  for rule in crawl_rules:
+    if rule.tag == "":
+      return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+    if rule.id < 1:
+      return JSONResponse(status_code=422, content={"detail": "Id should start from 1"})    
+    
+    crawlRule.append({
+      "id": rule.id,
+      "tag": rule.tag,
+      "HTMLClassName": rule.HTMLClassName,
+      "HTMLIDName": rule.HTMLIDName,
+      "ChildCrawlRuleID": rule.ChildCrawlRuleID
+    }) 
+  
+  relatedCrawlrule = []
+  for index in range(0, len(crawl_rules)):
+    isChildrenRule = False
+    
+    for existedCrawlrule in range(0, len(relatedCrawlrule)):
+      for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
+        if crawl_rules[subcrawlRule].ChildCrawlRuleID == crawl_rules[index].id:
+          isChildrenRule = True
+          relatedCrawlrule[existedCrawlrule].append(index)
+          break
+        
+      if isChildrenRule == True:
+        break
+    
+    if isChildrenRule == False:
+      relatedCrawlrule.append([index])
+  
+  afterReformatCrawlRules = []
+  for longRule in relatedCrawlrule:
+    rules = []
+
+    for rule in longRule:
+      rules.append(
+        [
+          crawl_rules[rule].tag,
+          crawl_rules[rule].HTMLClassName,
+          crawl_rules[rule].HTMLIDName,
+        ]
+      )
+      
+    for index in range(1, len(rules)):
+      rules[index - 1].append(rules[index])
+      
+    afterReformatCrawlRules.append(rules[0])
+  
+  res = webpageSpiderController.updateCrawlRules(
+    spider_id=spider_id,
+    crawl_rules=afterReformatCrawlRules
+  )
+
+  if res[0] == True:
+    return JSONResponse(
+      status_code=200, 
+      content={
+        "spiderId": spider_id,
+        "crawlRules": crawlRule,
+        "relatedRule": relatedCrawlrule,
+        "realRule": afterReformatCrawlRules
+      }
+    )
+  return JSONResponse(status_code=500, content={"message": res[1]}) 
+
+
   
 @app.post("/webpageSpider/{spider_id}/run", status_code=201, tags=["Webpage Spider"])
 def run_webpage_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  webpage_spider_information = webpageSpiderController.getSpiderById(spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
   
@@ -511,7 +609,7 @@ def run_webpage_spider(spider_id: int):
     crawl_rule_as_string = ",".join(crawl_rule[1])
     print(crawl_rule_as_string)
     
-  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  api_endpoint = EDUCRAWLER_SERVICE_API_ENDPOINT
   body = {
     "project": "default",
     "spider": "WebpageSpider",
@@ -540,7 +638,7 @@ def run_webpage_spider(spider_id: int):
   
 @app.post("/webpageSpider/{spider_id}/stop", status_code=200, tags=["Webpage Spider"])
 def stop_webpage_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebpageSpiderById(spider_id)
+  webpage_spider_information = webpageSpiderController.getSpiderById(spider_id)
   
   if webpage_spider_information[0] == True:
     if webpage_spider_information[1]["JobId"] == '':
@@ -616,7 +714,7 @@ def get_website_spider_by_id(spider_id: int):
 
 @app.get("/websiteSpider/{spider_id}/history", status_code=200, tags=["Website Spider"])
 def get_website_spider_history(spider_id: int):
-  res = spiderController.getWebsiteSpiderHistory(
+  res = websiteSpiderController.getHistory(
     spider_id=spider_id
   )
   if res[0]:
@@ -638,7 +736,7 @@ def run_website_spider(spider_id: int):
   keywords_as_string = keywords_as_string[:-1]
   print(keywords_as_string)
   
-  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  api_endpoint = EDUCRAWLER_SERVICE_API_ENDPOINT
   body = {
     "project": "default",
     "spider": "WebsiteSpider",
@@ -706,15 +804,6 @@ def create_website_spider(spider_status: WebsiteSpider):
   # Validate Input
   if spider_status.url == "":
     return JSONResponse(status_code=403, content={"detail": "Url can not be empty"})   
-  
-  '''
-  try:
-    pattern = r'^(http|https):\/\/([\w.-]+)(\.[\w.-]+)+([\/\w\.-]*)*\/?$'
-    if bool(re.match(pattern, spider_status.url)) == False:
-      return JSONResponse(status_code=403, content={"detail": "Url field only contain url"})  
-  except:
-    return JSONResponse(status_code=403, content={"detail": "Url field only contain url"})  
-  '''
     
   if spider_status.delay < 0.5:
     return JSONResponse(status_code=403, content={"detail": "Spider delay can not be lower than 0.5."})   
@@ -800,14 +889,14 @@ def create_website_spider(spider_status: WebsiteSpider):
     subFolders.append((folder.url, folderReformatCrawlRule, searchRules))
     
   # Create in db
-  res = databaseAPI.createWebsiteSpider(
+  res = websiteSpiderController.createSpider(
     url=spider_status.url,
     delay=spider_status.delay,
     graphDeep=spider_status.graphdeep,
     maxThread=spider_status.maxThread,
     fileTypes=spider_status.filetype,
     keywords=spider_status.keyword,
-    subfolder=subFolders
+    subfolder=subFolders    
   )
 
   if res[0] == True:
@@ -831,9 +920,117 @@ def create_website_spider(spider_status: WebsiteSpider):
       return JSONResponse(status_code=500, content={"message": res[1]}) 
     return JSONResponse(status_code=500, content={"message": res[1]}) 
   
+@app.put("/websiteSpider/{spider_id}/subfolder", status_code=200, tags=["Website Spider"])
+def update_website_spider_subfolder(spider_id: int, subfolders: List[SubFolder]):
+  if databaseAPI.isOverStorage():
+    return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
+    
+  # Format Crawl Rule and search rule for subfolder
+  subFolders = []
+  afterReformatCrawlRules = []
+  
+  print(subfolders)
+  for folder in subfolders:
+    crawlRule = []
+    folderReformatCrawlRule = []
+  
+    # Crawl Rules
+    for rule in folder.crawlRules:
+      if rule.tag == "":
+        return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+      
+      crawlRule.append({
+        "id": rule.id,
+        "tag": rule.tag,
+        "HTMLClassName": rule.HTMLClassName,
+        "HTMLIDName": rule.HTMLIDName,
+        "ChildCrawlRuleID": rule.ChildCrawlRuleID
+      }) 
+    
+    relatedCrawlrule = []
+    for index in range(0, len(folder.crawlRules)):
+      isChildrenRule = False
+      
+      for existedCrawlrule in range(0, len(relatedCrawlrule)):
+        for subcrawlRule in relatedCrawlrule[existedCrawlrule]:
+          if folder.crawlRules[subcrawlRule].ChildCrawlRuleID == folder.crawlRules[index].id:
+            isChildrenRule = True
+            relatedCrawlrule[existedCrawlrule].append(index)
+            break
+          
+        if isChildrenRule == True:
+          break
+      
+      if isChildrenRule == False:
+        relatedCrawlrule.append([index])
+    
+    for longRule in relatedCrawlrule:
+      rules = []
+      for rule in longRule:
+        rules.append(
+          [
+            folder.crawlRules[rule].tag,
+            folder.crawlRules[rule].HTMLClassName,
+            folder.crawlRules[rule].HTMLIDName,
+          ]
+        )
+        
+      for index in range(1, len(rules)):
+        rules[index - 1].append(rules[index])
+        
+      afterReformatCrawlRules.append(rules[0])
+      folderReformatCrawlRule.append(rules[0])
+    
+    # Search Rules
+    searchRules = []
+    
+    for rule in folder.searchRules:
+      if rule.tag == "":
+        return JSONResponse(status_code=422, content={"detail": "Tag can not be empty"})      
+      
+      searchRules.append([
+        rule.tag, rule.HTMLClassName, rule.HTMLIDName
+      ])
+    
+    subFolders.append((folder.url, folderReformatCrawlRule, searchRules))
+    
+  # Create in db
+  res = websiteSpiderController.updateSubFolder(
+    spider_id=spider_id,
+    subfolder=subFolders
+  )
+
+  if res[0] == True:
+    return JSONResponse(
+      status_code=200, 
+      content={
+        "id": spider_id,
+        "realRule": afterReformatCrawlRules,
+        "Subfolder": subFolders
+      }
+    )
+  if res[1] == "Spider is already existed!":
+    return JSONResponse(status_code=422, content={"message": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]}) 
+  
+@app.put("/websiteSpider/{spider_id}/basicSetting", status_code=200, tags=["Website Spider"])
+def update_basic_setting(spider_id: int, delay: float = 2.5, graph_deep: int = 2, max_thread: int = 2):
+  res = websiteSpiderController.updateSetting(
+    spider_id=spider_id,
+    delay=delay,
+    graphDeep=graph_deep,
+    maxThread=max_thread
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])  
+  
+  
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
 def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: int = 10):
-  res = spiderController.getWebsiteSpiderArticle(
+  res = websiteSpiderController.getArticles(
     spider_id=spider_id,
     page=page,
     article_per_page=articlePerPage
@@ -846,7 +1043,7 @@ def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: in
  
 @app.get("/websiteSpider/{spider_id}/crawlRules", status_code=200, tags=["Website Spider"])
 def get_website_spider_crawl_rules(spider_id: int):
-  res = spiderController.getWebsiteSpiderCrawlRulesAsCssSelector(
+  res = websiteSpiderController.getCrawlRules(
     spider_id=spider_id
   )
     
@@ -857,7 +1054,7 @@ def get_website_spider_crawl_rules(spider_id: int):
   
 @app.get("/websiteSpider/{spider_id}/searchRules", status_code=200, tags=["Website Spider"])
 def get_website_spider_crawl_rules(spider_id: int):
-  res = spiderController.getWebsiteSpiderSearchRulesAssCssSelector(
+  res = websiteSpiderController.getSearchRules(
     spider_id=spider_id
   )
     
@@ -866,7 +1063,6 @@ def get_website_spider_crawl_rules(spider_id: int):
   else:
     return JSONResponse(status_code=404, content=res[1])
   
-# Spider 
 @app.delete("/spiders", status_code=200, tags=["Spider"])
 def delete_spider(spider_id: int):
   res = databaseAPI.deleteSpider(spider_id)
@@ -885,7 +1081,8 @@ def edit_base_spider(
   url: str = "",
   status: UserRole = "Available",
   is_academic: bool = False,
-  keyword_ids: List[int] = []
+  keyword_ids: List[int] = [],
+  filetype_ids: List[int] = []
 ):
   res = spiderController.editSpider(
     spider_id=spider_id,
@@ -937,24 +1134,102 @@ def create_user(user: User):
     
 @app.get("/users", status_code=200, tags=["User"])
 def get_users(page: int = 0, userPerPage: int = 10):
-  res = databaseAPI.getUser(
+  res = userController.getUser(
     page=page,
-    userPerPage=userPerPage
+    user_per_page=userPerPage
   )
   
   if res[0] == True:
-    return JSONResponse(status_code=201, content={"detail": res[1]})
-  else:
-    if res[1] == "Error when fetching data":
-      return JSONResponse(status_code=500, content={"message": res[1]})
-    if res[1] == "Out of range":
-      return JSONResponse(status_code=404, content={"message": "Not Found"})   
-    return JSONResponse(status_code=404, content={"message": res[1]})
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content={"message": "Not Found"})   
+  return JSONResponse(status_code=500, content={"message": res[1]})
+  
+class AccountStatus(str, Enum):
+    Good = "Good"
+    Restrict = "Restrict"
+    Banned = "Banned"
+  
+@app.put("/users/{user_id}/accountStatus", status_code=200, tags=["User"])
+def update_user_status(user_id: int, account_status: AccountStatus = "Good"):
+  res = userController.updateUserStatus(
+    user_id=user_id,
+    account_status=account_status.split(".")[-1]
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+ 
+class SystemLanguage(str, Enum):
+    English = "English"
+    Vietnamese = "Vietnamese"
+  
+@app.put("/users/{user_id}/systemLanguage", status_code=200, tags=["User"])
+def update_user_language(user_id: int, user_language: SystemLanguage = "English"):
+  res = userController.updateUserLanguage(
+    user_id=user_id,
+    user_language=user_language.split(".")[-1]
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+class SystemMode(str, Enum):
+    Light = "Light"
+    Dark = "Dark"
+  
+@app.put("/users/{user_id}/systemMode", status_code=200, tags=["User"])
+def update_user_system_mode(user_id: int, system_mode: SystemMode = "Light"):
+  res = userController.updateUserSystemMode(
+    user_id=user_id,
+    system_mode=system_mode.split(".")[-1]
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+@app.put("/users/{user_id}", status_code=200, tags=["User"])
+def update_user(user_id: int, full_name: str, phone: str, mail: str):
+  res = userController.updateUser(
+    user_id=user_id,
+    full_name=full_name,
+    phone=phone,
+    mail=mail
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+@app.get("/users/{user_id}", status_code=200, tags=["User"])
+def get_user_by_id(user_id: int):
+  res = userController.getUserById(
+    user_id=user_id
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
+  
+@app.delete("/users/{user_id}", status_code=200, tags=["User"])
+def delete_user(user_id: int):
+  res = userController.deleteUser(
+    user_id=user_id
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content={"detail": res[1]})
+  return JSONResponse(status_code=500, content={"message": res[1]})  
   
 # Demo Spider
 @app.get("/demoSpider", status_code=201, tags=["Demo Webpage Spider"])
 def crawl_single_page(url: str):
-  api_endpoint = "https://educrawlercrawlerservice.onrender.com/schedule.json"
+  api_endpoint = EDUCRAWLER_SERVICE_API_ENDPOINT
   body = {
     "project": "default",
     "spider": "demoCrawlerURL",

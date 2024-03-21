@@ -2,6 +2,7 @@ from typing import Any
 from databaseAPI import Singleton
 
 from datetime import datetime 
+import math
 from ControllerDB.KeywordDB import Keyword, KeywordDB
  
 keywordDB = KeywordDB()
@@ -105,13 +106,11 @@ class ArticleDB(Singleton):
   ):
     sql_count_command = '''
     SELECT count(*)
-    FROM public."Article"
-    '''
+    FROM public."Article"'''
     
     sql_command = '''
     SELECT *
-    FROM public."Article"
-    '''
+    FROM public."Article"'''
     
     if len(start_time) > 0:
       print(start_time)
@@ -127,6 +126,8 @@ class ArticleDB(Singleton):
     FETCH FIRST %s ROW ONLY;     
     ''' % (order_by.split('.')[-1], filter_order.split('.')[-1], page * article_per_page, article_per_page)
     sql_command = sql_command + sql_sub_command
+            
+    print(sql_command)
             
     articles = []
   
@@ -167,9 +168,75 @@ class ArticleDB(Singleton):
     
     return (True, {
       "total_article": total_article,
+      "page": page,
+      "article_per_page": article_per_page,
+      "total_page": math.ceil(total_article / article_per_page),
       "detail": [ele.getBasic() for ele in articles]
     })
     
+  def getArticleByContent(self, content, page, article_per_page):
+    sql_count_command = '''
+    SELECT count(*)
+    FROM public."Article"
+    WHERE "Content" LIKE '%''' + content + "%';"
+    
+    sql_command = '''
+    SELECT *
+    FROM public."Article"
+    WHERE "Content" LIKE '%''' + content + "%'"
+    
+    sql_sub_command = '''
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY;     
+    ''' % (page * article_per_page, article_per_page)
+    
+    sql_command = sql_command + sql_sub_command
+    
+    articles = []
+  
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):                         
+        articles.append(Article(
+          id=result[0],
+          domain=result[1],
+          url=result[2],
+          title=result[9],
+          content=result[4],
+          firstCrawlDate=result[10],
+          lastUpdate=result[5],
+          crawlStatus=result[6],
+          note=result[7],
+          keyword=[]
+        ))
+        result = self.cur.fetchone()
+    except Exception as err :
+      print(err)
+      return(False, "Error when fetching")
+    
+    if len(articles) == 0:
+      return(False, "No data to fetch")
+
+    total_article = 0
+
+    try:
+      self.cur.execute(sql_count_command)
+      result = self.cur.fetchone()
+      if (result):
+        total_article = result[0]
+    except Exception as err :
+      print(err)
+      return(False, "Error when fetching")
+    
+    return (True, {
+      "total_article": total_article,
+      "page": page,
+      "article_per_page": article_per_page,
+      "total_page": math.ceil(total_article / article_per_page),
+      "detail": [ele.getBasic() for ele in articles]
+    })
+
   def getArticleByID(self, article_id):
     sql_command = '''
     select * from public."Article" where "Id" = %d

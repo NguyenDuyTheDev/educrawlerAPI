@@ -8,6 +8,18 @@ class ArticleController():
   ):
     return articleDB.countArticle()
   
+  def searchArticle(
+    self, 
+    content,
+    page = 0, 
+    article_per_page = 10
+  ):
+    return articleDB.getArticleByContent(
+      content=content,
+      page=page,
+      article_per_page=article_per_page
+    )
+  
   def sortArticle(
     self, 
     page = 0, 
@@ -47,7 +59,7 @@ class ArticleController():
       url=url,
       content=content
     )
-    
+  
   def editArticle(
     self, 
     article_id, 
