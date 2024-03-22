@@ -1262,13 +1262,19 @@ def update_user_system_mode(user_id: int, system_mode: SystemMode = "Light"):
     return JSONResponse(status_code=200, content={"detail": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]})  
   
+class UserBasicInfomation(BaseModel):
+    user_id: int
+    full_name: str
+    phone: str
+    mail: str
+  
 @app.put("/users/{user_id}", status_code=200, tags=["User"])
-def update_user(user_id: int, full_name: str, phone: str, mail: str):
+def update_user(user_basic_infomation: UserBasicInfomation):
   res = userController.updateUser(
-    user_id=user_id,
-    full_name=full_name,
-    phone=phone,
-    mail=mail
+    user_id=user_basic_infomation.user_id,
+    full_name=user_basic_infomation.full_name,
+    phone=user_basic_infomation.phone,
+    mail=user_basic_infomation.mail
   )
   
   if res[0] == True:
