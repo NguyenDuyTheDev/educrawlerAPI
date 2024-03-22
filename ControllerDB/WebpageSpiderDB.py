@@ -3,6 +3,7 @@ from ControllerDB.SpiderDB import SpiderDB, Spider
 
 from datetime import datetime 
 from ControllerDB.KeywordDB import Keyword, KeywordDB
+import math
  
 keywordDB = KeywordDB()
  
@@ -363,7 +364,10 @@ class WebpageSpiderDB(SpiderDB):
     
     if len(data) == 0:
       return (False, "No data to fetch")
-    return (True, data)
+    return (True, {
+      "total": len(data),
+      "detail": data               
+    })
   
   def getArticles(
     self, 
@@ -463,6 +467,9 @@ class WebpageSpiderDB(SpiderDB):
     
     return (True, {
       "total_spider": total_spider,
+      "page": page,
+      "spider_per_page": spiderPerPage,
+      "total_page": math.ceil(total_spider / spiderPerPage),
       "detail": return_value
     })
     
@@ -604,3 +611,82 @@ class WebpageSpiderDB(SpiderDB):
     return_value["CrawlRule"] = crawl_rules
     
     return (True, return_value)    
+  
+  def getCrawlRule(self, spider_id):
+    sql_command = '''
+    SELECT *
+    FROM public."WebpageSpiderCrawlRules", public."CrawlRules"
+    WHERE public."WebpageSpiderCrawlRules"."CrawlRulesID" = public."CrawlRules"."ID" and public."WebpageSpiderCrawlRules"."SpiderID" = %s;
+    ''' % (spider_id)
+    
+    crawl_rules = []
+    sub_crawl_rules = []
+    child_crawl_rules_id = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        crawl_rules.append({
+          "Id": result[1],
+          "Tag": result[3],
+          "ClassName": result[4],
+          "IDName": result[5],
+          "ChildId": result[6],
+        })
+        if result[6] != None:
+          child_crawl_rules_id.append(result[6])
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching crawlrule data")
+        
+    while len(child_crawl_rules_id) > 0:
+      sql_command = '''
+      SELECT *
+      FROM public."CrawlRules"
+      WHERE public."CrawlRules"."ID" = %s;
+      ''' % (child_crawl_rules_id[0])
+      
+      try:
+        self.cur.execute(sql_command)
+        result = self.cur.fetchone()
+        if result:
+          sub_crawl_rules.append({
+            "Id": result[0],
+            "Tag": result[1],
+            "ClassName": result[2],
+            "IDName": result[3],
+            "ChildId": result[4],
+          })
+          if result[4] != None:
+            child_crawl_rules_id.append(result[4])
+          child_crawl_rules_id.pop(0)
+      except:
+        return (False, "Error when fetching crawlrule data")
+    
+    crawl_rules.extend(sub_crawl_rules)
+    
+    return (True, crawl_rules)
+    
+    crawl_rules_as_string = []
+    for mainRule in range(0, len(crawl_rules)):
+      mainRuleAsString = crawl_rules[mainRule]["Tag"]
+      if len(crawl_rules[mainRule]["ClassName"]) > 0:
+        mainRuleAsString = mainRuleAsString + " ." + crawl_rules[mainRule]["ClassName"]
+      if len(crawl_rules[mainRule]["IDName"]) > 0:
+        mainRuleAsString = mainRuleAsString + " #" + crawl_rules[mainRule]["IDName"]
+        
+      childID = crawl_rules[mainRule]["ChildId"]
+      while childID != None:
+        for subRule in range(0, len(sub_crawl_rules)):
+          if sub_crawl_rules[subRule]["Id"] == childID:
+            mainRuleAsString = mainRuleAsString + " " + sub_crawl_rules[subRule]["Tag"]
+            if len(sub_crawl_rules[subRule]["ClassName"]) > 0:
+              mainRuleAsString = mainRuleAsString + " ." + sub_crawl_rules[subRule]["ClassName"]
+            if len(sub_crawl_rules[subRule]["IDName"]) > 0:
+              mainRuleAsString = mainRuleAsString + " #" + sub_crawl_rules[subRule]["IDName"]
+            childID = sub_crawl_rules[subRule]["ChildId"]
+            break
+        
+      crawl_rules_as_string.append(mainRuleAsString)
+    
+    return (True, crawl_rules_as_string)       

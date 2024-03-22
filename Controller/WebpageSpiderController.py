@@ -54,3 +54,8 @@ class WebpageSpiderController(SpiderController):
     return webpageSpiderDB.getSpiderById(
       id=id
     )
+    
+  def getCrawlRules(self, spider_id):
+    return webpageSpiderDB.getCrawlRule(
+      spider_id=spider_id
+    )

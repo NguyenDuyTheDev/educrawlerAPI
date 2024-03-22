@@ -2,6 +2,7 @@ from typing import Any
 from ControllerDB.SpiderDB import SpiderDB, Spider
 
 from datetime import datetime 
+import math
 from ControllerDB.KeywordDB import Keyword, KeywordDB
  
 keywordDB = KeywordDB()
@@ -372,7 +373,10 @@ class WebsiteSpiderDB(SpiderDB):
     
     if len(data) == 0:
       return (False, "No data to fetch")
-    return (True, data)
+    return (True, {
+      "total": len(data),
+      "detail": data               
+    })
   
   def getArticles(
     self, 
@@ -380,6 +384,22 @@ class WebsiteSpiderDB(SpiderDB):
     page = 0, 
     article_per_page = 10
   ):
+    sql_command = '''
+    SELECT COUNT(*) 
+    FROM "Article", "WebsiteSpider"
+    WHERE "Article"."SpiderId" = "WebsiteSpider"."ID"
+    AND "Article"."SpiderId" = %s;
+    ''' % (spider_id)
+    
+    total = 0
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()      
+      if result:        
+        total = result[0]
+    except:
+      return (False, "Error when fetching data")
+    
     sql_command = '''
     SELECT * 
     FROM "Article", "WebsiteSpider"
@@ -418,7 +438,13 @@ class WebsiteSpiderDB(SpiderDB):
     
     if len(data) == 0:
       return (False, "No data to fetch")
-    return (True, data)
+    return (True, {
+      "total_article": total,
+      "page": page,
+      "article_per_page": article_per_page, 
+      "total_page": math.ceil(total / article_per_page),
+      "detail": data               
+    })
   
   def getCrawlRule(self, spider_id):
     sql_command = '''
@@ -1047,5 +1073,8 @@ class WebsiteSpiderDB(SpiderDB):
     
     return (True, {
       "total_spider": total_spider,
+      "page": page,
+      "spider_per_page": spiderPerPage,
+      "total_page": math.ceil(total_spider / spiderPerPage),
       "detail": return_value
     })

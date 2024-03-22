@@ -369,11 +369,11 @@ def delete_article(article_id: int):
 # Webpage Spider  
 
 class CrawlRule(BaseModel):
-    id: int
-    tag: str
-    HTMLClassName: str
-    HTMLIDName: str
-    ChildCrawlRuleID: int
+    id: int = 1
+    tag: str = "p"
+    HTMLClassName: str = ""
+    HTMLIDName: str = ""
+    ChildCrawlRuleID: int = 0
   
 class WebpageSpider(BaseModel):
     url: str
@@ -429,8 +429,8 @@ def get_webpage_spider_article(spider_id: int):
 
 @app.get("/webpageSpider/{spider_id}/crawl_rule", status_code=201, tags=["Webpage Spider"])
 def get_webpage_spider_crawl_rule_by_id(spider_id: int):
-  res = databaseAPI.getWebpageSpiderCrawlRulebyID(
-    id=spider_id
+  res = webpageSpiderController.getCrawlRules(
+    spider_id=spider_id
   )
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
@@ -519,7 +519,7 @@ def create_webpage_spider(spider_status: WebpageSpider):
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
 @app.put("/webpageSpider/{spider_id}/crawlRules", status_code=200, tags=["Webpage Spider"])
-def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule] = []): 
+def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule]): 
   crawlRule = []
   
   for rule in crawl_rules:
@@ -1017,13 +1017,19 @@ def update_website_spider_subfolder(spider_id: int, subfolders: List[SubFolder])
     return JSONResponse(status_code=422, content={"message": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]}) 
   
+class WebsiteSpiderBasicSetting(BaseModel):
+  spider_id: int
+  delay: float = 2.5
+  graph_deep: int = 2
+  max_thread: int = 2
+  
 @app.put("/websiteSpider/{spider_id}/basicSetting", status_code=200, tags=["Website Spider"])
-def update_basic_setting(spider_id: int, delay: float = 2.5, graph_deep: int = 2, max_thread: int = 2):
+def update_basic_setting(website_spider_basic_setting: WebsiteSpiderBasicSetting):
   res = websiteSpiderController.updateSetting(
-    spider_id=spider_id,
-    delay=delay,
-    graphDeep=graph_deep,
-    maxThread=max_thread
+    spider_id=website_spider_basic_setting.spider_id,
+    delay=website_spider_basic_setting.delay,
+    graphDeep=website_spider_basic_setting.graph_deep,
+    maxThread=website_spider_basic_setting.max_thread
   )
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
