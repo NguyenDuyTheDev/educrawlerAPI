@@ -1067,6 +1067,19 @@ def get_website_spider_crawl_rules(spider_id: int):
   else:
     return JSONResponse(status_code=404, content=res[1])
   
+@app.get("/spiders", status_code=200, tags=["Spider"])
+def get_spider_per_page(page: int = 0, spider_per_page: int = 10):
+  res = spiderController.getSpiders(
+    page=page,
+    spider_per_page=spider_per_page
+  )
+  
+  if res[0] == True:
+    return JSONResponse(status_code=200, content=res[1])  
+  if res[1] == "No data to fetch":
+    return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
+  return JSONResponse(status_code=500, content=res[1])  
+  
 @app.get("/spiders/{spider_id}", status_code=200, tags=["Spider"])
 def get_spider(spider_id: int):
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
@@ -1121,7 +1134,7 @@ def get_spider_article(spider_id: int, page: int = 0, article_per_page: int = 10
   
   return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
   
-@app.delete("/spiders", status_code=200, tags=["Spider"])
+@app.delete("/spiders/{spider_id}", status_code=200, tags=["Spider"])
 def delete_spider(spider_id: int):
   res = spiderController.deleteSpider(spider_id=spider_id)
   

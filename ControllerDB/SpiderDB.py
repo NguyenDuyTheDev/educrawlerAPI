@@ -463,3 +463,60 @@ class SpiderDB(Singleton):
     except:
       return (False, "Error when fetching data")
     return (True, "A webpage spider")
+  
+  def getSpiders(self, page = 0, spiderPerPage = 10):
+    sql_command = '''
+    SELECT count(*)
+    FROM public."Spider";
+    '''
+    total_spider = 0
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_spider = result[0]
+    except:
+      return (False, "Error when fetching data")      
+    
+    sql_command = '''
+    SELECT *
+    FROM public."Spider"
+    ORDER BY public."Spider"."ID" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (page * spiderPerPage, spiderPerPage)
+
+    return_value = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
+        return_value.append({
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "JobId": result[12],
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(return_value) == 0:
+      return (False, "No data to fetch")
+    
+    return (True, {
+      "total_spider": total_spider,
+      "detail": return_value
+    })

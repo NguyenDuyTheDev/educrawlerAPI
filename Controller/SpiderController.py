@@ -59,3 +59,13 @@ class SpiderController():
     spider_id
   ):
     return spiderDB.isWebpageSpider(spider_id=spider_id)
+  
+  def getSpiders(
+    self,
+    page = 0,
+    spider_per_page = 10
+  ):
+    return spiderDB.getSpiders(
+      page=page,
+      spiderPerPage=spider_per_page
+    )
