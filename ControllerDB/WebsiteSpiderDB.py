@@ -842,3 +842,210 @@ class WebsiteSpiderDB(SpiderDB):
       return (False, "Error when edit spider!")
     return (True, "Edit spider complete")
   
+  def setJobID(
+    self, 
+    spider_id, 
+    job_id
+  ):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    reformatted_current = ""
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        current = datetime.now()
+        reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+        
+        sql_select_command = '''
+        UPDATE public."Spider"
+        SET "JobId" = '%s',
+        "Status" = 'Running',
+        "CrawlStatus" = 'Good',
+        "LastRunDate" = TIMESTAMP '%s'
+        WHERE "ID" = %s;            
+        ''' % (job_id, reformatted_current, spider_id)        
+        
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when assigning data")
+    
+    return (True, {
+      "spiderId": spider_id,
+      "status": "running",
+      "crawlStatus": "good",
+      "lastRunDate": reformatted_current,
+      "jobId": job_id
+    }) 
+    
+  def getById(self, spider_id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+
+    return_value = {}
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
+        return_value = {
+          "Type": "WebsiteSpider",
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "GraphDeep": result[9],
+          "MaxThread": result[10],
+          "JobId": result[12],
+          "TotalPage": result[15],
+          "CrawlSuccess": result[16],
+          "CrawlFail": result[17],
+          "Keyword": [],
+          "FileType": [],
+          "IsAcademic": result[13],
+        }
+        result = self.cur.fetchone()
+      else:
+        return (False, "No Website Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderKeyword", public."Keyword"
+    WHERE public."SpiderKeyword"."KeywordID" = public."Keyword"."ID" and public."SpiderKeyword"."SpiderID" = %s;
+    ''' % (spider_id)
+    
+    spider_keyword = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        spider_keyword.append({
+          "Id": result[0],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["Keyword"] = spider_keyword
+
+    sql_command = '''
+    SELECT *
+    FROM public."SpiderSupportedFileType", public."SupportedFileType"
+    WHERE public."SpiderSupportedFileType"."FileTypeID" = public."SupportedFileType"."ID" and public."SpiderSupportedFileType"."SpiderID" = %s;
+    ''' % (spider_id)
+    
+    file_type = []
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      while (result):
+        file_type.append({
+          "Id": result[1],
+          "Value": result[3]
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching keyword data")
+    
+    return_value["FileType"] = file_type
+    
+    return (True, return_value)    
+    
+  def get(self, page = 0, spiderPerPage = 10):
+    sql_command = '''
+    SELECT COUNT(*)
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID";
+    '''
+    total_spider = 0
+    
+    try:
+      self.cur.execute(sql_command)
+      result = self.cur.fetchone()
+      total_spider = result[0]
+    except:
+      return (False, "Error when checking data")
+    
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID"
+    ORDER BY public."Spider"."ID" 
+    OFFSET %s ROWS 
+    FETCH FIRST %s ROW ONLY; 
+    ''' % (page * spiderPerPage, spiderPerPage)
+
+    return_value = []
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      while (result):
+        LastRunDate = ""
+        if result[4]:
+          LastRunDate = result[4].strftime("%m/%d/%Y, %H:%M:%S")
+          
+        LastEndDate = ""
+        if result[5]:
+          LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")        
+        
+        return_value.append({
+          "Id": result[0],
+          "Url": result[1],
+          "Status": result[2],
+          "CrawlStatus": result[3],
+          "LastRunDate": LastRunDate,
+          "LastEndDate": LastEndDate,
+          "RunTime": result[6],
+          "isBlocked": result[7],
+          "Delay": result[8],
+          "GraphDeep": result[9],
+          "MaxThread": result[10],
+          "JobId": result[12],
+          "TotalPage": result[14],
+          "CrawlSuccess": result[15],
+          "CrawlFail": result[16],
+        })
+        result = self.cur.fetchone()
+    except:
+      return (False, "Error when fetching data")
+    
+    if len(return_value) == 0:
+      return (False, "No data to fetch")
+    
+    return (True, {
+      "total_spider": total_spider,
+      "detail": return_value
+    })

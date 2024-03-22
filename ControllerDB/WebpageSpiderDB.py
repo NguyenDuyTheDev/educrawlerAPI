@@ -486,6 +486,7 @@ class WebpageSpiderDB(SpiderDB):
           LastEndDate = result[5].strftime("%m/%d/%Y, %H:%M:%S")
         
         return_value = {
+          "Type": "WebpageSpider",
           "Id": result[0],
           "Url": result[1],
           "Status": result[2],

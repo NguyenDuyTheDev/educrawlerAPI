@@ -83,3 +83,31 @@ class WebsiteSpiderController(SpiderController):
       graphDeep=graphDeep,
       maxThread=maxThread
     )
+    
+  def setJobId(
+    self, 
+    spider_id,
+    job_id
+  ):
+    return websiteSpiderDB.setJobID(
+      spider_id=spider_id,
+      job_id=job_id
+    )
+    
+  def getById(
+    self,
+    spider_id
+  ):
+    return websiteSpiderDB.getById(
+      spider_id=spider_id
+    )
+    
+  def getByPage(
+    self, 
+    page = 0, 
+    spider_by_page = 10
+  ):
+    return websiteSpiderDB.get(
+      page=page,
+      spiderPerPage=spider_by_page
+    )

@@ -690,9 +690,9 @@ class WebsiteSpider(BaseModel):
     
 @app.get("/websiteSpider", status_code=200, tags=["Website Spider"])
 def get_website_spider(page: int = 0, spiderPerPage: int = 10):
-  res = databaseAPI.getWebsiteSpider(
+  res = websiteSpiderController.getByPage(
     page=page,
-    spiderPerPage=spiderPerPage
+    spider_by_page=spiderPerPage
   )
   
   if res[0]:
@@ -703,8 +703,8 @@ def get_website_spider(page: int = 0, spiderPerPage: int = 10):
 
 @app.get("/websiteSpider/{spider_id}", status_code=200, tags=["Website Spider"])
 def get_website_spider_by_id(spider_id: int):
-  res = databaseAPI.getWebsiteSpiderById(
-    id=spider_id
+  res = websiteSpiderController.getById(
+    spider_id=spider_id
   )
   if res[0]:
     return JSONResponse(status_code=200, content=res[1])
@@ -725,7 +725,7 @@ def get_website_spider_history(spider_id: int):
 
 @app.post("/websiteSpider/{spider_id}/run", status_code=201, tags=["Website Spider"])
 def run_website_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebsiteSpiderById(spider_id)
+  webpage_spider_information = websiteSpiderController.getById(spider_id=spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
   
@@ -758,17 +758,19 @@ def run_website_spider(spider_id: int):
     body["jobid"] = res_data["jobid"]
     print(body["jobid"])
     
-    setJobIDResult = databaseAPI.setWebsiteSpiderJobID(spider_id, body["jobid"])
+    setJobIDResult = websiteSpiderController.setJobId(
+      spider_id=spider_id,
+      job_id=body["jobid"]
+    )
+    
     if setJobIDResult[0] == True:
       return JSONResponse(status_code=200, content=setJobIDResult[1])
-    else:
-      return JSONResponse(status_code=200, content="The Spider is running without updating jobid")
-  else:
-    return JSONResponse(status_code=res.status_code, content="Can not crawl")
+    return JSONResponse(status_code=200, content="The Spider is running without updating jobid")
+  return JSONResponse(status_code=res.status_code, content="Can not crawl")
   
 @app.post("/websiteSpider/{spider_id}/stop", status_code=201, tags=["Website Spider"])
 def stop_website_spider(spider_id: int):
-  webpage_spider_information = databaseAPI.getWebsiteSpiderById(spider_id)
+  webpage_spider_information = websiteSpiderController.getById(spider_id=spider_id)
   
   if webpage_spider_information[0] == True:
     if webpage_spider_information[1]["JobId"] == '':
@@ -787,13 +789,11 @@ def stop_website_spider(spider_id: int):
   )
   
   if res.status_code == 200:
-    res = databaseAPI.updateSpiderWhenClosingViaID(spider_id)
+    res = websiteSpiderController.removeJobId(spider_id=spider_id)
     if res[0] == True:
-      return JSONResponse(status_code=200, content="Close spider successfully!")
-    else:
       return JSONResponse(status_code=200, content=res[1])
-  else:
-    return JSONResponse(status_code=res.status_code, content="Can not stop")
+    return JSONResponse(status_code=200, content=res[1])
+  return JSONResponse(status_code=res.status_code, content="Can not stop")
 
   
 @app.post("/websiteSpider", status_code=201, tags=["Website Spider"])
@@ -1063,9 +1063,63 @@ def get_website_spider_crawl_rules(spider_id: int):
   else:
     return JSONResponse(status_code=404, content=res[1])
   
+@app.get("/spiders/{spider_id}", status_code=200, tags=["Spider"])
+def get_spider(spider_id: int):
+  if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
+    return get_website_spider_by_id(spider_id=spider_id)
+  
+  if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
+    return get_webpage_spider_by_id(spider_id=spider_id)
+  
+  return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
+  
+@app.post("/spiders/{spider_id}/run", status_code=200, tags=["Spider"])
+def run_spider(spider_id: int):
+  if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
+    return run_website_spider(spider_id=spider_id)
+  
+  if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
+    return run_webpage_spider(spider_id=spider_id)
+  
+  return JSONResponse(status_code=404, content={"message": "No spider to run"})  
+  
+@app.post("/spiders/{spider_id}/stop", status_code=200, tags=["Spider"])
+def stop_spider(spider_id: int):
+  if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
+    return stop_website_spider(spider_id=spider_id)
+  
+  if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
+    return stop_webpage_spider(spider_id=spider_id)
+  
+  return JSONResponse(status_code=404, content={"message": "No spider to stop"})  
+  
+@app.get("/spiders/{spider_id}/history", status_code=200, tags=["Spider"])
+def get_spider_history(spider_id: int):
+  if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
+    return get_website_spider_history(spider_id=spider_id)
+  
+  if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
+    return get_webpage_spider_history(spider_id=spider_id)
+  
+  return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
+  
+@app.get("/spiders/{spider_id}/articles", status_code=200, tags=["Spider"])
+def get_spider_article(spider_id: int, page: int = 0, article_per_page: int = 10):
+  if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
+    return get_website_spider_article(
+      spider_id=spider_id,
+      page=page,
+      articlePerPage=article_per_page
+    )
+  
+  if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
+    return get_webpage_spider_article(spider_id=spider_id)
+  
+  return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
+  
 @app.delete("/spiders", status_code=200, tags=["Spider"])
 def delete_spider(spider_id: int):
-  res = databaseAPI.deleteSpider(spider_id)
+  res = spiderController.deleteSpider(spider_id=spider_id)
   
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
@@ -1075,7 +1129,7 @@ class UserRole(str, Enum):
     Available = "Available"
     Blocked = "Blocked"
   
-@app.put("/spiders", status_code=200, tags=["Spider"])
+@app.put("/spiders/{spider_id}", status_code=200, tags=["Spider"])
 def edit_base_spider(
   spider_id: int,
   url: str = "",

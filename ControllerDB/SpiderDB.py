@@ -368,3 +368,98 @@ class SpiderDB(Singleton):
     except:
       return (False, "Error when fetching data")  
     return (True, return_value)
+  
+  def removeJobId(self, spider_id):    
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider"
+    WHERE public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    reformatted_current = ""
+    totalRunTimeAsInt = 0
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if (result):                
+        current = datetime.now()
+        reformatted_current = current.strftime("%m-%d-%Y %H:%M:%S")
+        
+        totalRunTime = current - result[4]
+        totalRunTimeAsInt = totalRunTime.seconds + result[6]
+        
+        sql_select_command = '''
+        UPDATE public."Spider"
+        SET "JobId" = '',
+        "Status" = 'Available',
+        "LastEndDate" = TIMESTAMP '%s',
+        "RunTime" = '%s'
+        WHERE "ID" = %s;            
+        ''' % (reformatted_current, totalRunTimeAsInt, result[0])   
+      else:
+        return (False, "No Webpage Spider Exist")
+    except:
+      return (False, "Error when fetching data")
+    
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except:
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when assigning data")
+    
+    return (True, {
+      "spiderId": spider_id,
+      "status": "Available",
+      "lastEndDate": reformatted_current,
+      "runTime": totalRunTimeAsInt
+    }) 
+    
+  def deleteSpider(self, spider_id):
+    sql_select_command = '''
+    DELETE FROM public."Spider"
+    WHERE "ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      self.connection.commit()
+    except KeyError as err:
+      print(err)
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when deleting data")    
+  
+    return (True, "Delete Spider %s successfully!" % spider_id)  
+  
+  def isWebsiteSpider(self, spider_id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebsiteSpider"
+    WHERE public."Spider"."ID" = public."WebsiteSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if not result:
+        return (False, "Not a website spider")
+    except:
+      return (False, "Error when fetching data")
+    return (True, "A website spider")
+  
+  def isWebpageSpider(self, spider_id):
+    sql_select_command = '''
+    SELECT *
+    FROM public."Spider", public."WebpageSpider"
+    WHERE public."Spider"."ID" = public."WebpageSpider"."ID" and public."Spider"."ID" = %s;
+    ''' % (spider_id)
+  
+    try:
+      self.cur.execute(sql_select_command)
+      result = self.cur.fetchone()
+      if not result:
+        return (False, "Not a webpage spider")
+    except:
+      return (False, "Error when fetching data")
+    return (True, "A webpage spider")

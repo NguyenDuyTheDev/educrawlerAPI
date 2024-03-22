@@ -37,3 +37,25 @@ class SpiderController():
       is_academic=is_academic
     )
     
+  def removeJobId(
+    self, 
+    spider_id
+  ):
+    return spiderDB.removeJobId(
+      spider_id=spider_id
+    )
+    
+  def deleteSpider(self, spider_id):
+    return spiderDB.deleteSpider(spider_id=spider_id)
+  
+  def isWebsiteSpider(
+    self, 
+    spider_id
+  ):
+    return spiderDB.isWebsiteSpider(spider_id=spider_id)
+  
+  def isWebpageSpider(
+    self, 
+    spider_id
+  ):
+    return spiderDB.isWebpageSpider(spider_id=spider_id)
