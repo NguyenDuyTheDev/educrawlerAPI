@@ -588,14 +588,15 @@ def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRul
     )
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
-
-  
 @app.post("/webpageSpider/{spider_id}/run", status_code=201, tags=["Webpage Spider"])
 def run_webpage_spider(spider_id: int):
   webpage_spider_information = webpageSpiderController.getSpiderById(spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
   
+  if webpage_spider_information[1]["JobId"] != '':
+    return JSONResponse(status_code=404, content="The Spider is already running!")
+
   keywords = webpage_spider_information[1]["Keyword"]
   keywords_as_string: str = ''
   for word in keywords:
@@ -728,6 +729,9 @@ def run_website_spider(spider_id: int):
   webpage_spider_information = websiteSpiderController.getById(spider_id=spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
+  
+  if webpage_spider_information[1]["JobId"] != '':
+    return JSONResponse(status_code=200, content="The Spider is already running!")
   
   keywords = webpage_spider_information[1]["Keyword"]
   keywords_as_string: str = ''
