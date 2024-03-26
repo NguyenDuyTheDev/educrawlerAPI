@@ -47,7 +47,7 @@ class Message(BaseModel):
   message: str
 
 @app.get("/", tags=["Introduction"])
-def get_introduction():
+async def get_introduction():
     return {
       "Name": "EducrawlerAPI",
       "Description": "API for managing Education Article and Spider",
@@ -78,7 +78,7 @@ def get_introduction():
 
 # Keyword
 @app.get("/keywords", status_code=200, tags=["Keyword"])
-def get_keywords(page: int = 0, keywordPerPage: int = 10):
+async def get_keywords(page: int = 0, keywordPerPage: int = 10):
   res = keywordController.getKeyword(
     page=page,
     keywordPerPage=keywordPerPage
@@ -90,7 +90,7 @@ def get_keywords(page: int = 0, keywordPerPage: int = 10):
   return JSONResponse(status_code=500, content=res[1]) 
       
 @app.post("/keywords", status_code=201, tags=["Keyword"])
-def create_keyword(name: str):
+async def create_keyword(name: str):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -102,7 +102,7 @@ def create_keyword(name: str):
   return JSONResponse(status_code=500, content={"message": res[1]})  
   
 @app.put("/keywords/{keyword_id}", status_code=200, tags=["Keyword"])
-def update_keyword(keyword_id: int, name: str):
+async def update_keyword(keyword_id: int, name: str):
   res = keywordController.editKeyword(
     id=keyword_id, 
     keyword=name
@@ -116,7 +116,7 @@ def update_keyword(keyword_id: int, name: str):
   return JSONResponse(status_code=500, content={"message": res[1]})  
 
 @app.delete("/keywords/{keyword_id}", status_code=200, tags=["Keyword"])
-def delete_keyword(keyword_id: int):
+async def delete_keyword(keyword_id: int):
   res = keywordController.deleteKeyword(
     id=keyword_id
   )
@@ -128,7 +128,7 @@ def delete_keyword(keyword_id: int):
     
 # File Type
 @app.get("/filetypes", status_code=200, tags=["Supported File Type"])
-def get_supported_file_types(page: int = 0, filetypePerPage: int = 10):
+async def get_supported_file_types(page: int = 0, filetypePerPage: int = 10):
   total_supported_file_types = databaseAPI.getTotalSupportedFileType()
   if total_supported_file_types[0] == False:
     return JSONResponse(status_code=500, content={"message": res[1]})  
@@ -149,7 +149,7 @@ def get_supported_file_types(page: int = 0, filetypePerPage: int = 10):
     return JSONResponse(status_code=500, content={"detail": res[1]})
   
 @app.post("/filetypes", status_code=201, tags=["Supported File Type"])
-def create_file_type(name: str):
+async def create_file_type(name: str):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -163,7 +163,7 @@ def create_file_type(name: str):
     return JSONResponse(status_code=500, content={"message": res[1]}) 
     
 @app.put("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
-def update_file_type(file_type_id: int, name: str):
+async def update_file_type(file_type_id: int, name: str):
   res = databaseAPI.editSupportedFileTypeByID(file_type_id, name)
   
   if res[0] == True:
@@ -176,7 +176,7 @@ def update_file_type(file_type_id: int, name: str):
     return JSONResponse(status_code=500, content={"message": "Error when updating!"}) 
 
 @app.delete("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
-def delete_file_type(file_type_id: int):
+async def delete_file_type(file_type_id: int):
   res = databaseAPI.deleteSupportedFileTypeByID(file_type_id)
   
   if res[0] == True:
@@ -197,7 +197,7 @@ class Article(BaseModel):
     spiderid: int
 
 @app.get("/articles", status_code=200, tags=["Article"])
-def get_articles(page: int = 0, articlePerPage: int = 10):
+async def get_articles(page: int = 0, articlePerPage: int = 10):
   res = articleController.sortArticle(
     page=page,
     article_per_page=articlePerPage,
@@ -213,7 +213,7 @@ def get_articles(page: int = 0, articlePerPage: int = 10):
   return JSONResponse(status_code=500, content=res[1])
   
 @app.get("/articles/search", status_code=200, tags=["Article"])
-def search_articles(content: str ,page: int = 0, articlePerPage: int = 10):
+async def search_articles(content: str ,page: int = 0, articlePerPage: int = 10):
   res = articleController.searchArticle(
     content=content,
     page=page,
@@ -236,7 +236,7 @@ class FilterOrder(str, Enum):
     DESC = "DESC"
   
 @app.post("/articles/sort", status_code=200, tags=["Article"])
-def sort_articles(
+async def sort_articles(
   page: int = 0, 
   articlePerPage: int = 10,
   orderBy: OrderBy = "LastUpdate",
@@ -288,7 +288,7 @@ def sort_articles(
   return JSONResponse(status_code=500, content=res[1])  
   
 @app.get("/articles/{article_id}", status_code=200, tags=["Article"])
-def get_article_by_id(article_id: int):
+async def get_article_by_id(article_id: int):
   res = articleController.getArticle(article_id=article_id)
   
   if res[0]:
@@ -299,7 +299,7 @@ def get_article_by_id(article_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.post("/article", status_code=201, tags=["Article"])
-def create_article(article: Article):
+async def create_article(article: Article):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -317,7 +317,7 @@ def create_article(article: Article):
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
 @app.post("/article/{article_id}/reCrawl", status_code=201, tags=["Article"])
-def recrawl_the_article_with_demo_spider(article_id: int):
+async def recrawl_the_article_with_demo_spider(article_id: int):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."}) 
     
@@ -341,7 +341,7 @@ def recrawl_the_article_with_demo_spider(article_id: int):
   return JSONResponse(status_code=res.status_code, content="Can not crawl this article")
       
 @app.put("/article/{article_id}", status_code=200, tags=["Article"])
-def update_article(article_id: int, article: Article):
+async def update_article(article_id: int, article: Article):
   res = articleController.editArticle(
     article_id=article_id,
     title=article.title,
@@ -357,7 +357,7 @@ def update_article(article_id: int, article: Article):
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
 @app.delete("/article/{article_id}", status_code=200, tags=["Article"])
-def delete_article(article_id: int):
+async def delete_article(article_id: int):
   res = articleController.deleteArticle(article_id=article_id)
   
   if res[0] == True:
@@ -382,7 +382,7 @@ class WebpageSpider(BaseModel):
     crawlRules: List[CrawlRule]
 
 @app.get("/webpageSpider", status_code=200, tags=["Webpage Spider"])
-def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
+async def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
   res = webpageSpiderController.getSpiders(
     page=page,
     spiderPerPage=spiderPerPage
@@ -394,7 +394,7 @@ def get_webpage_spider(page: int = 0, spiderPerPage: int = 10):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/webpageSpider/{spider_id}", status_code=200, tags=["Webpage Spider"])
-def get_webpage_spider_by_id(spider_id: int):
+async def get_webpage_spider_by_id(spider_id: int):
   res = webpageSpiderController.getSpiderById(
     id=spider_id
   )
@@ -405,7 +405,7 @@ def get_webpage_spider_by_id(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/webpageSpider/{spider_id}/history", status_code=201, tags=["Webpage Spider"])
-def get_webpage_spider_history(spider_id: int):
+async def get_webpage_spider_history(spider_id: int):
   res = webpageSpiderController.getHistory(
     spider_id=spider_id
   )
@@ -417,7 +417,7 @@ def get_webpage_spider_history(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/webpageSpider/{spider_id}/article", status_code=200, tags=["Webpage Spider"])
-def get_webpage_spider_article(spider_id: int):
+async def get_webpage_spider_article(spider_id: int):
   res = webpageSpiderController.getArticles(
     spider_id=spider_id
   )
@@ -428,7 +428,7 @@ def get_webpage_spider_article(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/webpageSpider/{spider_id}/crawl_rule", status_code=201, tags=["Webpage Spider"])
-def get_webpage_spider_crawl_rule_by_id(spider_id: int):
+async def get_webpage_spider_crawl_rule_by_id(spider_id: int):
   res = webpageSpiderController.getCrawlRules(
     spider_id=spider_id
   )
@@ -437,7 +437,7 @@ def get_webpage_spider_crawl_rule_by_id(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.post("/webpageSpider", status_code=201, tags=["Webpage Spider"])
-def create_webpage_spider(spider_status: WebpageSpider):
+async def create_webpage_spider(spider_status: WebpageSpider):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -519,7 +519,7 @@ def create_webpage_spider(spider_status: WebpageSpider):
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
 @app.put("/webpageSpider/{spider_id}/crawlRules", status_code=200, tags=["Webpage Spider"])
-def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule]): 
+async def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule]): 
   crawlRule = []
   
   for rule in crawl_rules:
@@ -589,7 +589,7 @@ def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRul
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
 @app.post("/webpageSpider/{spider_id}/run", status_code=201, tags=["Webpage Spider"])
-def run_webpage_spider(spider_id: int):
+async def run_webpage_spider(spider_id: int):
   webpage_spider_information = webpageSpiderController.getSpiderById(spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
@@ -638,7 +638,7 @@ def run_webpage_spider(spider_id: int):
     return JSONResponse(status_code=res.status_code, content="Can not crawl")
   
 @app.post("/webpageSpider/{spider_id}/stop", status_code=200, tags=["Webpage Spider"])
-def stop_webpage_spider(spider_id: int):
+async def stop_webpage_spider(spider_id: int):
   webpage_spider_information = webpageSpiderController.getSpiderById(spider_id)
   
   if webpage_spider_information[0] == True:
@@ -667,7 +667,7 @@ def stop_webpage_spider(spider_id: int):
     return JSONResponse(status_code=res.status_code, content="Can not stop")
   
 @app.get("/webpageSpider/{spider_id}/lastRunTime", status_code=200, tags=["Webpage Spider"])
-def get_last_run_time(spider_id: int):
+async def get_last_run_time(spider_id: int):
   res = databaseAPI.calculateLastRunTime(spider_id)
   
   if res[0] == True:
@@ -690,7 +690,7 @@ class WebsiteSpider(BaseModel):
     subfolders: List[SubFolder]
     
 @app.get("/websiteSpider", status_code=200, tags=["Website Spider"])
-def get_website_spider(page: int = 0, spiderPerPage: int = 10):
+async def get_website_spider(page: int = 0, spiderPerPage: int = 10):
   res = websiteSpiderController.getByPage(
     page=page,
     spider_by_page=spiderPerPage
@@ -703,7 +703,7 @@ def get_website_spider(page: int = 0, spiderPerPage: int = 10):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/websiteSpider/{spider_id}", status_code=200, tags=["Website Spider"])
-def get_website_spider_by_id(spider_id: int):
+async def get_website_spider_by_id(spider_id: int):
   res = websiteSpiderController.getById(
     spider_id=spider_id
   )
@@ -714,7 +714,7 @@ def get_website_spider_by_id(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.get("/websiteSpider/{spider_id}/history", status_code=200, tags=["Website Spider"])
-def get_website_spider_history(spider_id: int):
+async def get_website_spider_history(spider_id: int):
   res = websiteSpiderController.getHistory(
     spider_id=spider_id
   )
@@ -725,7 +725,7 @@ def get_website_spider_history(spider_id: int):
   return JSONResponse(status_code=500, content=res[1])
 
 @app.post("/websiteSpider/{spider_id}/run", status_code=201, tags=["Website Spider"])
-def run_website_spider(spider_id: int):
+async def run_website_spider(spider_id: int):
   webpage_spider_information = websiteSpiderController.getById(spider_id=spider_id)
   if webpage_spider_information[0] != True:
     return JSONResponse(status_code=404, content=webpage_spider_information[1])
@@ -773,7 +773,7 @@ def run_website_spider(spider_id: int):
   return JSONResponse(status_code=res.status_code, content="Can not crawl")
   
 @app.post("/websiteSpider/{spider_id}/stop", status_code=201, tags=["Website Spider"])
-def stop_website_spider(spider_id: int):
+async def stop_website_spider(spider_id: int):
   webpage_spider_information = websiteSpiderController.getById(spider_id=spider_id)
   
   if webpage_spider_information[0] == True:
@@ -801,7 +801,7 @@ def stop_website_spider(spider_id: int):
 
   
 @app.post("/websiteSpider", status_code=201, tags=["Website Spider"])
-def create_website_spider(spider_status: WebsiteSpider):
+async def create_website_spider(spider_status: WebsiteSpider):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -925,7 +925,7 @@ def create_website_spider(spider_status: WebsiteSpider):
     return JSONResponse(status_code=500, content={"message": res[1]}) 
   
 @app.put("/websiteSpider/{spider_id}/subfolder", status_code=200, tags=["Website Spider"])
-def update_website_spider_subfolder(spider_id: int, subfolders: List[SubFolder]):
+async def update_website_spider_subfolder(spider_id: int, subfolders: List[SubFolder]):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
     
@@ -1024,7 +1024,7 @@ class WebsiteSpiderBasicSetting(BaseModel):
   max_thread: int = 2
   
 @app.put("/websiteSpider/{spider_id}/basicSetting", status_code=200, tags=["Website Spider"])
-def update_basic_setting(website_spider_basic_setting: WebsiteSpiderBasicSetting):
+async def update_basic_setting(website_spider_basic_setting: WebsiteSpiderBasicSetting):
   res = websiteSpiderController.updateSetting(
     spider_id=website_spider_basic_setting.spider_id,
     delay=website_spider_basic_setting.delay,
@@ -1039,7 +1039,7 @@ def update_basic_setting(website_spider_basic_setting: WebsiteSpiderBasicSetting
   
   
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
-def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: int = 10):
+async def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: int = 10):
   res = websiteSpiderController.getArticles(
     spider_id=spider_id,
     page=page,
@@ -1052,7 +1052,7 @@ def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: in
   return JSONResponse(status_code=500, content=res[1])
  
 @app.get("/websiteSpider/{spider_id}/crawlRules", status_code=200, tags=["Website Spider"])
-def get_website_spider_crawl_rules(spider_id: int):
+async def get_website_spider_crawl_rules(spider_id: int):
   res = websiteSpiderController.getCrawlRules(
     spider_id=spider_id
   )
@@ -1063,7 +1063,7 @@ def get_website_spider_crawl_rules(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   
 @app.get("/websiteSpider/{spider_id}/searchRules", status_code=200, tags=["Website Spider"])
-def get_website_spider_crawl_rules(spider_id: int):
+async def get_website_spider_crawl_rules(spider_id: int):
   res = websiteSpiderController.getSearchRules(
     spider_id=spider_id
   )
@@ -1074,7 +1074,7 @@ def get_website_spider_crawl_rules(spider_id: int):
     return JSONResponse(status_code=404, content=res[1])
   
 @app.get("/spiders", status_code=200, tags=["Spider"])
-def get_spider_per_page(page: int = 0, spider_per_page: int = 10):
+async def get_spider_per_page(page: int = 0, spider_per_page: int = 10):
   res = spiderController.getSpiders(
     page=page,
     spider_per_page=spider_per_page
@@ -1087,61 +1087,61 @@ def get_spider_per_page(page: int = 0, spider_per_page: int = 10):
   return JSONResponse(status_code=500, content=res[1])  
   
 @app.get("/spiders/{spider_id}", status_code=200, tags=["Spider"])
-def get_spider(spider_id: int):
+async def get_spider(spider_id: int):
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
-    return get_website_spider_by_id(spider_id=spider_id)
+    return await get_website_spider_by_id(spider_id=spider_id)
   
   if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
-    return get_webpage_spider_by_id(spider_id=spider_id)
+    return await get_webpage_spider_by_id(spider_id=spider_id)
   
   return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
   
 @app.post("/spiders/{spider_id}/run", status_code=200, tags=["Spider"])
-def run_spider(spider_id: int):
+async def run_spider(spider_id: int):
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
-    return run_website_spider(spider_id=spider_id)
+    return await run_website_spider(spider_id=spider_id)
   
   if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
-    return run_webpage_spider(spider_id=spider_id)
+    return await run_webpage_spider(spider_id=spider_id)
   
   return JSONResponse(status_code=404, content={"message": "No spider to run"})  
   
 @app.post("/spiders/{spider_id}/stop", status_code=200, tags=["Spider"])
-def stop_spider(spider_id: int):
+async def stop_spider(spider_id: int):
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
-    return stop_website_spider(spider_id=spider_id)
+    return await stop_website_spider(spider_id=spider_id)
   
   if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
-    return stop_webpage_spider(spider_id=spider_id)
+    return await stop_webpage_spider(spider_id=spider_id)
   
   return JSONResponse(status_code=404, content={"message": "No spider to stop"})  
   
 @app.get("/spiders/{spider_id}/history", status_code=200, tags=["Spider"])
-def get_spider_history(spider_id: int):
+async def get_spider_history(spider_id: int):  
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
-    return get_website_spider_history(spider_id=spider_id)
+    return await get_website_spider_history(spider_id=spider_id)
   
   if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
-    return get_webpage_spider_history(spider_id=spider_id)
+    return await get_webpage_spider_history(spider_id=spider_id)
   
   return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
   
 @app.get("/spiders/{spider_id}/articles", status_code=200, tags=["Spider"])
-def get_spider_article(spider_id: int, page: int = 0, article_per_page: int = 10):
+async def get_spider_article(spider_id: int, page: int = 0, article_per_page: int = 10):
   if spiderController.isWebsiteSpider(spider_id=spider_id)[0] == True:
-    return get_website_spider_article(
+    return await get_website_spider_article(
       spider_id=spider_id,
       page=page,
       articlePerPage=article_per_page
     )
   
   if spiderController.isWebpageSpider(spider_id=spider_id)[0] == True:
-    return get_webpage_spider_article(spider_id=spider_id)
+    return await get_webpage_spider_article(spider_id=spider_id)
   
   return JSONResponse(status_code=404, content={"message": "No data to fetch"})  
   
 @app.delete("/spiders/{spider_id}", status_code=200, tags=["Spider"])
-def delete_spider(spider_id: int):
+async def delete_spider(spider_id: int):
   res = spiderController.deleteSpider(spider_id=spider_id)
   
   if res[0] == True:
@@ -1153,7 +1153,7 @@ class UserRole(str, Enum):
     Blocked = "Blocked"
   
 @app.put("/spiders/{spider_id}", status_code=200, tags=["Spider"])
-def edit_base_spider(
+async def edit_base_spider(
   spider_id: int,
   url: str = "",
   status: UserRole = "Available",
@@ -1186,7 +1186,7 @@ class User(BaseModel):
     Role: str
   
 @app.post("/users", status_code=201, tags=["User"])
-def create_user(user: User):
+async def create_user(user: User):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
   
@@ -1210,7 +1210,7 @@ def create_user(user: User):
       return JSONResponse(status_code=500, content={"message": res[1]})  
     
 @app.get("/users", status_code=200, tags=["User"])
-def get_users(page: int = 0, userPerPage: int = 10):
+async def get_users(page: int = 0, userPerPage: int = 10):
   res = userController.getUser(
     page=page,
     user_per_page=userPerPage
@@ -1228,7 +1228,7 @@ class AccountStatus(str, Enum):
     Banned = "Banned"
   
 @app.put("/users/{user_id}/accountStatus", status_code=200, tags=["User"])
-def update_user_status(user_id: int, account_status: AccountStatus = "Good"):
+async def update_user_status(user_id: int, account_status: AccountStatus = "Good"):
   res = userController.updateUserStatus(
     user_id=user_id,
     account_status=account_status.split(".")[-1]
@@ -1243,7 +1243,7 @@ class SystemLanguage(str, Enum):
     Vietnamese = "Vietnamese"
   
 @app.put("/users/{user_id}/systemLanguage", status_code=200, tags=["User"])
-def update_user_language(user_id: int, user_language: SystemLanguage = "English"):
+async def update_user_language(user_id: int, user_language: SystemLanguage = "English"):
   res = userController.updateUserLanguage(
     user_id=user_id,
     user_language=user_language.split(".")[-1]
@@ -1258,7 +1258,7 @@ class SystemMode(str, Enum):
     Dark = "Dark"
   
 @app.put("/users/{user_id}/systemMode", status_code=200, tags=["User"])
-def update_user_system_mode(user_id: int, system_mode: SystemMode = "Light"):
+async def update_user_system_mode(user_id: int, system_mode: SystemMode = "Light"):
   res = userController.updateUserSystemMode(
     user_id=user_id,
     system_mode=system_mode.split(".")[-1]
@@ -1275,7 +1275,7 @@ class UserBasicInfomation(BaseModel):
     mail: str
   
 @app.put("/users/{user_id}", status_code=200, tags=["User"])
-def update_user(user_basic_infomation: UserBasicInfomation):
+async def update_user(user_basic_infomation: UserBasicInfomation):
   res = userController.updateUser(
     user_id=user_basic_infomation.user_id,
     full_name=user_basic_infomation.full_name,
@@ -1288,7 +1288,7 @@ def update_user(user_basic_infomation: UserBasicInfomation):
   return JSONResponse(status_code=500, content={"message": res[1]})  
   
 @app.get("/users/{user_id}", status_code=200, tags=["User"])
-def get_user_by_id(user_id: int):
+async def get_user_by_id(user_id: int):
   res = userController.getUserById(
     user_id=user_id
   )
@@ -1300,7 +1300,7 @@ def get_user_by_id(user_id: int):
   return JSONResponse(status_code=500, content={"message": res[1]})  
   
 @app.delete("/users/{user_id}", status_code=200, tags=["User"])
-def delete_user(user_id: int):
+async def delete_user(user_id: int):
   res = userController.deleteUser(
     user_id=user_id
   )
@@ -1311,7 +1311,7 @@ def delete_user(user_id: int):
   
 # Demo Spider
 @app.get("/demoSpider", status_code=201, tags=["Demo Webpage Spider"])
-def crawl_single_page(url: str):
+async def crawl_single_page(url: str):
   api_endpoint = EDUCRAWLER_SERVICE_API_ENDPOINT
   body = {
     "project": "default",
@@ -1332,42 +1332,42 @@ def crawl_single_page(url: str):
     return JSONResponse(status_code=res.status_code, content="Can not crawl")
   
 @app.get("/dashboard/totalRunTime", status_code=200, tags=["Dashboard"])
-def get_total_runtime():
+async def get_total_runtime():
   totalRunTimeRes = spiderController.getTotalRuntime()
   if totalRunTimeRes[0] == True:
     return JSONResponse(status_code=200, content={"TotalRunTime": totalRunTimeRes[1]})
   return JSONResponse(status_code=500, content={"message": totalRunTimeRes[1]})
 
 @app.get("/dashboard/totalArticle", status_code=200, tags=["Dashboard"])
-def get_total_article():  
+async def get_total_article():  
   totalArticleRes = articleController.countArticle()
   if totalArticleRes[0] == True:
     return JSONResponse(status_code=200, content={"TotalArticle": totalArticleRes[1]})
   return JSONResponse(status_code=500, content={"message": totalArticleRes[1]})
 
 @app.get("/dashboard/totalGoodCrawl", status_code=200, tags=["Dashboard"])
-def get_total_good_crawl():
+async def get_total_good_crawl():
   totalGoodRes = spiderController.getTotalCrawlSuccess()
   if totalGoodRes[0] == True:
     return JSONResponse(status_code=200, content={"TotalGoodCrawl": totalGoodRes[1]})
   return JSONResponse(status_code=500, content={"message": totalGoodRes[1]})
 
 @app.get("/dashboard/totalBadCrawl", status_code=200, tags=["Dashboard"])
-def get_total_runtime():
+async def get_total_runtime():
   totalFailRes = spiderController.getTotalCrawlFail()
   if totalFailRes[0] == True:
     return JSONResponse(status_code=200, content={"TotalBadCrawl": totalFailRes[1]})
   return JSONResponse(status_code=500, content={"message": totalFailRes[1]})
 
 @app.get("/dashboard/allSpiderRunningStatus", status_code=200, tags=["Dashboard"])
-def get_all_spider_running_status():
+async def get_all_spider_running_status():
   res = spiderController.getAllSpiderRunningStatus()
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]})
 
 @app.get("/dashboard/top10spider", status_code=200, tags=["Dashboard"])
-def get_top_10_spider_with_most_article():
+async def get_top_10_spider_with_most_article():
   res = spiderController.getTop10SpiderWithMostArticle()
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
