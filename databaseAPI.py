@@ -5,16 +5,16 @@ from typing import Any
 class SingletonMeta(type):
   _instances = {}
   
-  hostname = 'dpg-cmoefq6d3nmc739ks8o0-a.singapore-postgres.render.com'
-  username = 'educrawler_user'
-  password = 'qmwJ3In1mklqjxYalptpYP8g8D5akctU' # your password
-  database = 'educrawler'
+  hostname = 'dpg-co1fo1q1hbls73a3bcu0-a.singapore-postgres.render.com'
+  username = 'educrawlerbackup_user'
+  password = 'kST7rhkPuXNxaenA3wTdQvvAXvbl7ATX' # your password
+  database = 'educrawlerbackup'
   
   def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self not in self._instances:
             ## Create/Connect to database
-            self.connection = psycopg2.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database)
-                
+            self.connection = psycopg2.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database) 
+            
             ## Create cursor, used to execute commands
             self.cur = self.connection.cursor()
            
@@ -38,7 +38,7 @@ class Singleton(metaclass=SingletonMeta):
   #Propertise
   def getUsageStorage(self): 
     sql_command = '''
-      SELECT pg_size_pretty(pg_database_size('educrawler'));
+      SELECT pg_size_pretty(pg_database_size('educrawlerbackup'));
     '''
     
     try:
