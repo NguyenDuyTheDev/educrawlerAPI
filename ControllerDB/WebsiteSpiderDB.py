@@ -719,7 +719,8 @@ class WebsiteSpiderDB(SpiderDB):
       result = self.cur.fetchone()
       if not(result):
         return (False, "Error when fetching base spider!")
-    except:
+    except KeyError as err:
+      print(err)
       self.cur.execute("ROLLBACK;")
       return (False, "Error when creating base spider!")
     

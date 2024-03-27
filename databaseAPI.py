@@ -1,4 +1,4 @@
-import psycopg
+import psycopg2
 from datetime import datetime
 from typing import Any
 
@@ -13,7 +13,7 @@ class PsycopgDBSingleton(type):
   def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self not in self._instances:
             ## Create/Connect to database
-            self.connection = psycopg.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database) 
+            self.connection = psycopg2.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database) 
             
             ## Create cursor, used to execute commands
             self.cur = self.connection.cursor()
