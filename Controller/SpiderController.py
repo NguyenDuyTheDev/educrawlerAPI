@@ -23,11 +23,17 @@ class SpiderController():
     url = "",
     status = "Available",
     is_academic = False,
-    keyword_ids = []
+    keyword_ids = [],
+    file_type_ids = []
   ):
     spiderDB.updateKeywords(
       spider_id=spider_id, 
       keyword_ids=keyword_ids
+    )
+    
+    spiderDB.updateFileTypes(
+      spider_id=spider_id,
+      file_type_ids=file_type_ids
     )
     
     return spiderDB.editSpider(

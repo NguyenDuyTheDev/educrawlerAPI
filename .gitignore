@@ -16,3 +16,5 @@ testServerReq.py
 doc.txt
 backup.py
 testPsycord3.py
+ControllerDB/__pycache__/FileTypeDB.cpython-311.pyc
+Controller/__pycache__/FileTypeController.cpython-311.pyc

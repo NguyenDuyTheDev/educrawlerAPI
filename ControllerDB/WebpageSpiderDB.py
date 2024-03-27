@@ -3,9 +3,11 @@ from ControllerDB.SpiderDB import SpiderDB, Spider
 
 from datetime import datetime 
 from ControllerDB.KeywordDB import Keyword, KeywordDB
+from ControllerDB.FileTypeDB import FileType, FileTypeDB
 import math
  
 keywordDB = KeywordDB()
+fileTypeDB = FileTypeDB() 
  
 class WebpageSpider(Spider):
   id: int
@@ -284,9 +286,9 @@ class WebpageSpiderDB(SpiderDB):
     
     #Insert File Type
     for fileTypeID in fileTypes:
-      self.createSpiderFileType(
-        spiderID=spider_ID,
-        fileTypeId=fileTypeID
+      fileTypeDB.addFileTypeToSpider(
+        spider_id=spider_ID,
+        file_type_id=fileTypeID
       )
     
     #Insert CrawlRule

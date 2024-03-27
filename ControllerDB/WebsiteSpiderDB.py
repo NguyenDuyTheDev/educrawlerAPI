@@ -4,8 +4,10 @@ from ControllerDB.SpiderDB import SpiderDB, Spider
 from datetime import datetime 
 import math
 from ControllerDB.KeywordDB import Keyword, KeywordDB
+from ControllerDB.FileTypeDB import FileType, FileTypeDB
  
 keywordDB = KeywordDB()
+fileTypeDB = FileTypeDB()
  
 class WebsiteSpider(Spider):
   id: int
@@ -284,9 +286,9 @@ class WebsiteSpiderDB(SpiderDB):
     
     #Insert File Type
     for fileTypeID in fileTypes:
-      self.createSpiderFileType(
-        spiderID=spider_ID,
-        fileTypeId=fileTypeID
+      fileTypeDB.addFileTypeToSpider(
+        spider_id=spider_ID,
+        file_type_id=fileTypeID
       )
     
     #Insert CrawlRule
@@ -616,6 +618,42 @@ class WebsiteSpiderDB(SpiderDB):
       return (True, cssSelector)
     else:
       return res
+
+  def addSearchRuleToSubfolder(
+    self, 
+    subFolderId,
+    searchRuleId,
+    spiderID
+  ):
+    sql_command = '''
+    INSERT INTO public."SubfolderSearchRules" ("SubfolderID", "SpiderID", "SearchRuleID")
+    VALUES (%s, %s, %s);
+    ''' % (subFolderId, spiderID, searchRuleId)
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except Exception as error:
+      print(error)
+      self.cur.execute("ROLLBACK;") 
+    
+  def addCrawlRuleToSubfolder(
+    self, 
+    subFolderId,
+    crawlRulesID,
+    spiderID
+  ):
+    sql_command = '''
+    INSERT INTO public."SubfolderCrawlRules" ("SubfolderID", "SpiderID", "CrawlRuleID")
+    VALUES (%s, %s, %s);
+    ''' % (subFolderId, spiderID, crawlRulesID)
+    
+    try:
+      self.cur.execute(sql_command)
+      self.connection.commit()
+    except Exception as error:
+      print(error)
+      self.cur.execute("ROLLBACK;")
     
   def createSubFolder(
     self,
@@ -747,9 +785,9 @@ class WebsiteSpiderDB(SpiderDB):
     
     #Insert File Type
     for fileTypeID in fileTypes:
-      self.createSpiderFileType(
-        spiderID=spider_ID,
-        fileTypeId=fileTypeID
+      fileTypeDB.addFileTypeToSpider(
+        spider_id=spider_ID,
+        file_type_id=fileTypeID
       )
 
     #Inser SubFolder

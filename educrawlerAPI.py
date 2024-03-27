@@ -12,6 +12,7 @@ from Controller.ArticleController import ArticleController
 from Controller.WebpageSpiderController import WebpageSpiderController
 from Controller.WebsiteSpiderController import WebsiteSpiderController
 from Controller.UserController import UserController
+from Controller.FileTypeController import FileTypeController
 
 # Controller
 from Controller.KeywordController import KeywordController
@@ -30,6 +31,7 @@ keywordController = KeywordController()
 webpageSpiderController = WebpageSpiderController()
 websiteSpiderController = WebsiteSpiderController()
 userController = UserController()
+fileTypeController = FileTypeController()
 
 app = FastAPI()
 
@@ -129,20 +131,13 @@ async def delete_keyword(keyword_id: int):
 # File Type
 @app.get("/filetypes", status_code=200, tags=["Supported File Type"])
 async def get_supported_file_types(page: int = 0, filetypePerPage: int = 10):
-  total_supported_file_types = databaseAPI.getTotalSupportedFileType()
-  if total_supported_file_types[0] == False:
-    return JSONResponse(status_code=500, content={"message": res[1]})  
-
-  res = databaseAPI.getSupportedFileTypeByPage(
-    page=page, 
-    pageFileTypesNumber=filetypePerPage
-    )
+  res = fileTypeController.getFileType(
+    page=page,
+    fileTypePerPage=filetypePerPage
+  )
     
   if res[0] == True:
-    return JSONResponse(status_code=200, content={
-      "total_supported_file_types": total_supported_file_types[1],
-      "detail": res[1]
-    })  
+    return JSONResponse(status_code=200, content=res[1])  
   else:
     if res[1] == "No data to get":
       return JSONResponse(status_code=404, content={"detail": res[1]})
@@ -152,8 +147,10 @@ async def get_supported_file_types(page: int = 0, filetypePerPage: int = 10):
 async def create_file_type(name: str):
   if databaseAPI.isOverStorage():
     return JSONResponse(status_code=507, content={"message": "Server is out of free storage space."})  
-  
-  res = databaseAPI.addSupportedFileType(name)
+    
+  res = fileTypeController.addFileType(
+    fileType=name
+  )
   
   if res[0] == True:
     return JSONResponse(status_code=201, content={"detail": res[1]})
@@ -163,8 +160,11 @@ async def create_file_type(name: str):
     return JSONResponse(status_code=500, content={"message": res[1]}) 
     
 @app.put("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
-async def update_file_type(file_type_id: int, name: str):
-  res = databaseAPI.editSupportedFileTypeByID(file_type_id, name)
+async def update_file_type(file_type_id: int, name: str):  
+  res = fileTypeController.editFileType(
+    id=file_type_id,
+    fileType=name
+  )
   
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
@@ -176,8 +176,10 @@ async def update_file_type(file_type_id: int, name: str):
     return JSONResponse(status_code=500, content={"message": "Error when updating!"}) 
 
 @app.delete("/filetypes/{keyword_id}", status_code=200, tags=["Supported File Type"])
-async def delete_file_type(file_type_id: int):
-  res = databaseAPI.deleteSupportedFileTypeByID(file_type_id)
+async def delete_file_type(file_type_id: int):  
+  res = fileTypeController.deleteFileType(
+    id=file_type_id
+  )
   
   if res[0] == True:
     return JSONResponse(status_code=200, content={"detail": res[1]})
@@ -1183,7 +1185,8 @@ async def edit_base_spider(
     url=url,
     status=status.split(".")[-1],
     is_academic=is_academic,
-    keyword_ids=keyword_ids
+    keyword_ids=keyword_ids,
+    file_type_ids=filetype_ids
   )
   
   if res[0] == True:

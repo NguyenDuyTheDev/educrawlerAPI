@@ -2,9 +2,12 @@ from typing import Any
 from databaseAPI import Singleton
 
 from datetime import datetime 
+import math
 from ControllerDB.KeywordDB import Keyword, KeywordDB
+from ControllerDB.FileTypeDB import FileTypeDB, FileType
  
 keywordDB = KeywordDB()
+filetypeDB = FileTypeDB()
  
 class CrawlRule: 
   id: int
@@ -219,6 +222,19 @@ class SpiderDB(Singleton):
     for keyword in keyword_ids:
       keywordDB.addKeywordToSpider(
         keyword_id=keyword,
+        spider_id=spider_id
+      )
+      
+  def updateFileTypes(
+    self, 
+    spider_id,
+    file_type_ids = []
+  ):
+    filetypeDB.removeAllFileTypeFromSpider(spider_id=spider_id)
+    
+    for file_type in file_type_ids:
+      filetypeDB.addFileTypeToSpider(
+        file_type_id=file_type,
         spider_id=spider_id
       )
       
@@ -518,5 +534,8 @@ class SpiderDB(Singleton):
     
     return (True, {
       "total_spider": total_spider,
+      "page": page,
+      "spider_per_page": spiderPerPage,
+      "total_page": math.ceil(total_spider / spiderPerPage),
       "detail": return_value
     })
