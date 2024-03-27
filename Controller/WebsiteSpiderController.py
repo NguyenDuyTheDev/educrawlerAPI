@@ -111,3 +111,11 @@ class WebsiteSpiderController(SpiderController):
       page=page,
       spiderPerPage=spider_by_page
     )
+    
+  def swapToWebpageSpider(
+    self,
+    spider_id
+  ):
+    return websiteSpiderDB.swapToWebpage(
+      spider_id=spider_id
+    )

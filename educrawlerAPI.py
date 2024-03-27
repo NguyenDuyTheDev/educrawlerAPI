@@ -518,6 +518,15 @@ async def create_webpage_spider(spider_status: WebpageSpider):
     return JSONResponse(status_code=422, content={"message": res[1]})
   return JSONResponse(status_code=500, content={"message": res[1]}) 
 
+@app.put("/webpageSpider/{spider_id}/swap", status_code=200, tags=["Webpage Spider"])
+async def swap_to_website_spider(spider_id: int):
+  res = webpageSpiderController.swapToWebsiteSpider(
+    spider_id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])  
+
 @app.put("/webpageSpider/{spider_id}/crawlRules", status_code=200, tags=["Webpage Spider"])
 async def update_webpage_spider_crawl_rules(spider_id: int ,crawl_rules: List[CrawlRule]): 
   crawlRule = []
@@ -1037,6 +1046,14 @@ async def update_basic_setting(website_spider_basic_setting: WebsiteSpiderBasicS
     return JSONResponse(status_code=404, content=res[1])
   return JSONResponse(status_code=500, content=res[1])  
   
+@app.put("/websiteSpider/{spider_id}/swap", status_code=200, tags=["Website Spider"])
+async def swap_to_webpage_spider(spider_id: int):
+  res = websiteSpiderController.swapToWebpageSpider(
+    spider_id=spider_id
+  )
+  if res[0]:
+    return JSONResponse(status_code=200, content=res[1])
+  return JSONResponse(status_code=500, content=res[1])  
   
 @app.get("/websiteSpider/{spider_id}/article", status_code=200, tags=["Website Spider"])
 async def get_website_spider_article(spider_id: int, page: int = 0, articlePerPage: int = 10):

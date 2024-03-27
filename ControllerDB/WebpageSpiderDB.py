@@ -147,9 +147,9 @@ class WebpageSpiderDB(SpiderDB):
     if res[0] == False:
       return res
     
-    res = self.getCrawlRule(crawl_rule_id=crawlrule_id)
-    if res[0] == False:
-      return res
+    #res = self.getCrawlRule(crawl_rule_id=crawlrule_id)
+    #if res[0] == False:
+    #  return res
         
     # Create
     sql_command = '''
@@ -667,26 +667,31 @@ class WebpageSpiderDB(SpiderDB):
     
     return (True, crawl_rules)
     
-    crawl_rules_as_string = []
-    for mainRule in range(0, len(crawl_rules)):
-      mainRuleAsString = crawl_rules[mainRule]["Tag"]
-      if len(crawl_rules[mainRule]["ClassName"]) > 0:
-        mainRuleAsString = mainRuleAsString + " ." + crawl_rules[mainRule]["ClassName"]
-      if len(crawl_rules[mainRule]["IDName"]) > 0:
-        mainRuleAsString = mainRuleAsString + " #" + crawl_rules[mainRule]["IDName"]
-        
-      childID = crawl_rules[mainRule]["ChildId"]
-      while childID != None:
-        for subRule in range(0, len(sub_crawl_rules)):
-          if sub_crawl_rules[subRule]["Id"] == childID:
-            mainRuleAsString = mainRuleAsString + " " + sub_crawl_rules[subRule]["Tag"]
-            if len(sub_crawl_rules[subRule]["ClassName"]) > 0:
-              mainRuleAsString = mainRuleAsString + " ." + sub_crawl_rules[subRule]["ClassName"]
-            if len(sub_crawl_rules[subRule]["IDName"]) > 0:
-              mainRuleAsString = mainRuleAsString + " #" + sub_crawl_rules[subRule]["IDName"]
-            childID = sub_crawl_rules[subRule]["ChildId"]
-            break
-        
-      crawl_rules_as_string.append(mainRuleAsString)
+  def swapToWebsite(
+    self, 
+    spider_id
+  ):
+    res = self.isWebpageSpider(
+      spider_id=spider_id
+    )
+    if res[0] == False:
+      return (False, "The spider is already a website spider")
     
-    return (True, crawl_rules_as_string)       
+    sql_insert_command = '''
+    DELETE FROM "WebpageSpider" WHERE "ID" = %s;
+    INSERT INTO public."WebsiteSpider" ("ID") Values (%s);
+    ''' % (spider_id, spider_id)
+    
+    try:
+      self.cur.execute(sql_insert_command)
+      self.connection.commit()
+    except KeyError as err:
+      print(err)
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when swap to webpage spider!") 
+    
+    return (True, {
+      "spider_id": spider_id,
+      "type": "Website Spider"
+    })
+    

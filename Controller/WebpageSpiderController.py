@@ -59,3 +59,11 @@ class WebpageSpiderController(SpiderController):
     return webpageSpiderDB.getCrawlRule(
       spider_id=spider_id
     )
+    
+  def swapToWebsiteSpider(
+    self,
+    spider_id
+  ):
+    return webpageSpiderDB.swapToWebsite(
+      spider_id=spider_id
+    )

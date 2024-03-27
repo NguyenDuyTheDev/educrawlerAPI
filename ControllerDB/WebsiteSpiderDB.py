@@ -1079,3 +1079,32 @@ class WebsiteSpiderDB(SpiderDB):
       "total_page": math.ceil(total_spider / spiderPerPage),
       "detail": return_value
     })
+    
+  def swapToWebpage(
+    self, 
+    spider_id
+  ):
+    res = self.isWebsiteSpider(
+      spider_id=spider_id
+    )
+    if res[0] == False:
+      return (False, "The spider is already a webpage spider")
+    
+    sql_insert_command = '''
+    DELETE FROM "WebsiteSpider" WHERE "ID" = %s;
+    INSERT INTO public."WebpageSpider" ("ID") Values (%s);
+    ''' % (spider_id, spider_id)
+    
+    try:
+      self.cur.execute(sql_insert_command)
+      self.connection.commit()
+    except KeyError as err:
+      print(err)
+      self.cur.execute("ROLLBACK;")
+      return (False, "Error when swap to webpage spider!") 
+    
+    return (True, {
+      "spider_id": spider_id,
+      "type": "Webpage Spider"
+    })
+    
