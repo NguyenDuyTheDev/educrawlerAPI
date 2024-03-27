@@ -1,8 +1,8 @@
-import psycopg2
+import psycopg
 from datetime import datetime
 from typing import Any
 
-class SingletonMeta(type):
+class PsycopgDBSingleton(type):
   _instances = {}
   
   hostname = 'dpg-co1fo1q1hbls73a3bcu0-a.singapore-postgres.render.com'
@@ -13,7 +13,7 @@ class SingletonMeta(type):
   def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self not in self._instances:
             ## Create/Connect to database
-            self.connection = psycopg2.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database) 
+            self.connection = psycopg.connect(host=self.hostname, user=self.username, password=self.password, dbname=self.database) 
             
             ## Create cursor, used to execute commands
             self.cur = self.connection.cursor()
@@ -34,7 +34,7 @@ class SingletonMeta(type):
     print('Close db connection!')
     return
       
-class Singleton(metaclass=SingletonMeta):
+class Singleton(metaclass=PsycopgDBSingleton):
   #Propertise
   def getUsageStorage(self): 
     sql_command = '''
@@ -58,7 +58,7 @@ class Singleton(metaclass=SingletonMeta):
   
   def getUsedConnection(self):
     sql_command = '''
-      SELECT count(*) FROM pg_stat_activity WHERE "datname" = 'educrawler';
+      SELECT count(*) FROM pg_stat_activity WHERE "datname" = 'educrawlerbackup';
     '''
     self.cur.execute(sql_command)
     result = self.cur.fetchone()
